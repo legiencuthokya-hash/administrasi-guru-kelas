@@ -1,0 +1,170 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Akun admin atau guru di SD Negeri Maospati 3",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "guru"] },
+        "nama": { "type": "string" },
+        "nip": { "type": "string" },
+        "tanggungJawab": { 
+          "type": "string",
+          "enum": [
+            "Kelas 1", "Kelas 2", "Kelas 3", "Kelas 4", "Kelas 5", "Kelas 6",
+            "Pendidikan Agama Islam", "Pendidikan Agama Kristen", "Pendidikan Agama Katolik",
+            "Pendidikan agama Hindu", "Pendidikan agama Budha", "PJOK", "Administrator"
+          ]
+        },
+        "tandaTanganUrl": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["username", "role", "nama", "tanggungJawab"]
+    },
+    "Siswa": {
+      "title": "Siswa",
+      "description": "Data peserta didik di SD Negeri Maospati 3",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nisn": { "type": "string" },
+        "nis": { "type": "string" },
+        "nama": { "type": "string" },
+        "jenisKelamin": { "type": "string", "enum": ["L", "P"] },
+        "kelas": { "type": "string" },
+        "agama": { "type": "string" },
+        "status": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["nama", "kelas", "jenisKelamin"]
+    },
+    "Absensi": {
+      "title": "Absensi",
+      "description": "Catatan kehadiran harian siswa",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tanggal": { "type": "string" },
+        "bulan": { "type": "string" },
+        "semester": { "type": "string", "enum": ["1", "2"] },
+        "tahunAjaran": { "type": "string" },
+        "kelas": { "type": "string" },
+        "guruId": { "type": "string" },
+        "records": { "type": "object" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["tanggal", "kelas", "records"]
+    },
+    "Nilai": {
+      "title": "Nilai",
+      "description": "Data nilai harian per bab siswa",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "siswaId": { "type": "string" },
+        "kelas": { "type": "string" },
+        "mapel": { "type": "string" },
+        "guruId": { "type": "string" },
+        "semester": { "type": "string", "enum": ["1", "2"] },
+        "tahunAjaran": { "type": "string" },
+        "babScores": { "type": "object" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["siswaId", "kelas", "mapel", "babScores"]
+    },
+    "JurnalMengajar": {
+      "title": "JurnalMengajar",
+      "description": "Jurnal agenda dan refleksi mengajar guru",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tanggal": { "type": "string" },
+        "bulan": { "type": "string" },
+        "kelas": { "type": "string" },
+        "mapel": { "type": "string" },
+        "guruId": { "type": "string" },
+        "guruNama": { "type": "string" },
+        "babMateri": { "type": "string" },
+        "kegiatan": { "type": "string" },
+        "refleksi": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["tanggal", "kelas", "mapel", "babMateri", "kegiatan"]
+    },
+    "BimbinganSiswa": {
+      "title": "BimbinganSiswa",
+      "description": "Catatan bimbingan dan konseling siswa",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tanggal": { "type": "string" },
+        "semester": { "type": "string", "enum": ["1", "2"] },
+        "tahunAjaran": { "type": "string" },
+        "siswaId": { "type": "string" },
+        "siswaNama": { "type": "string" },
+        "kelas": { "type": "string" },
+        "guruId": { "type": "string" },
+        "permasalahan": { "type": "string" },
+        "penanganan": { "type": "string" },
+        "hasil": { "type": "string" },
+        "status": { "type": "string", "enum": ["Selesai", "Dalam Proses"] },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["tanggal", "siswaNama", "kelas", "permasalahan", "penanganan"]
+    },
+    "PengaturanSekolah": {
+      "title": "PengaturanSekolah",
+      "description": "Konfigurasi instansi SD Negeri Maospati 3 dan tanda tangan digital",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "namaSekolah": { "type": "string" },
+        "alamat": { "type": "string" },
+        "kecamatan": { "type": "string" },
+        "kabupatenKota": { "type": "string" },
+        "namaKepala": { "type": "string" },
+        "nipKepala": { "type": "string" },
+        "logoSekolahUrl": { "type": "string" },
+        "logoKabupatenUrl": { "type": "string" },
+        "tandaTanganKepalaUrl": { "type": "string" },
+        "lokasiTandaTangan": { "type": "string" },
+        "tahunAjaranAktif": { "type": "string" },
+        "semesterAktif": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["namaSekolah", "namaKepala", "lokasiTandaTangan"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Daftar pengguna (Admin & Guru SD Negeri Maospati 3)"
+    },
+    "/siswa/{siswaId}": {
+      "schema": "Siswa",
+      "description": "Daftar seluruh siswa SD Negeri Maospati 3"
+    },
+    "/absensi/{absensiId}": {
+      "schema": "Absensi",
+      "description": "Data absensi harian siswa"
+    },
+    "/nilai/{nilaiId}": {
+      "schema": "Nilai",
+      "description": "Data nilai penilaian harian siswa per bab"
+    },
+    "/jurnal/{jurnalId}": {
+      "schema": "JurnalMengajar",
+      "description": "Jurnal kegiatan belajar mengajar guru"
+    },
+    "/bimbingan/{bimbinganId}": {
+      "schema": "BimbinganSiswa",
+      "description": "Catatan bimbingan siswa per semester"
+    },
+    "/pengaturan/{docId}": {
+      "schema": "PengaturanSekolah",
+      "description": "Pengaturan profil sekolah, logo, dan tanda tangan kepala satuan pendidikan"
+    }
+  }
+}

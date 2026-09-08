@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+  </defs>
+  <!-- Background Shield/Rounded -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+  <circle cx="256" cy="256" r="220" fill="none" stroke="url(#gold)" stroke-width="8" stroke-dasharray="16 8" opacity="0.6"/>
+  
+  <!-- Outer Gold Ring -->
+  <circle cx="256" cy="256" r="185" fill="#1e293b" stroke="url(#gold)" stroke-width="12" />
+  
+  <!-- School Torch / Book Symbolism -->
+  <!-- Open Book -->
+  <path d="M256 310 C210 270 140 275 120 280 L120 370 C145 365 210 360 256 395 C302 360 367 365 392 370 L392 280 C372 275 302 270 256 310 Z" fill="#ffffff" />
+  <path d="M256 310 L256 395" stroke="#cbd5e1" stroke-width="4" />
+  
+  <!-- Flaming Torch (Pendidikan / Tut Wuri Handayani) -->
+  <path d="M246 295 L266 295 L260 340 L252 340 Z" fill="#f59e0b" />
+  <path d="M240 270 Q256 220 256 195 Q256 230 272 270 Q256 260 240 270 Z" fill="url(#gold)" />
+  <circle cx="256" cy="235" r="14" fill="#ef4444" opacity="0.9" />
+  
+  <!-- Stars -->
+  <polygon points="256,120 262,138 280,138 266,150 271,168 256,156 241,168 246,150 232,138 250,138" fill="url(#gold)" />
+  
+  <!-- Text Ribbon: SDN MAOSPATI 3 -->
+  <text x="256" y="445" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="28" fill="#fbbf24" text-anchor="middle" letter-spacing="3">SDN MAOSPATI 3</text>
+</svg>

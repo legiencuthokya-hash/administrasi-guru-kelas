@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@layer utilities {
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    .print-only {
+      display: block !important;
+    }
+    body {
+      background-color: white !important;
+      color: black !important;
+    }
+    .page-break-before {
+      page-break-before: always;
+    }
+    .page-break-inside-avoid {
+      page-break-inside: avoid;
+    }
+  }
+}
+
+@page {
+  margin: 1.2cm;
+}
+
+@page landscape {
+  size: landscape;
+}
+
+@page portrait {
+  size: portrait;
+}
+
+.landscape-mode {
+  page: landscape;
+}
+
+.portrait-mode {
+  page: portrait;
+}
+

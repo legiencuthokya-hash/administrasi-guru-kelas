@@ -1,0 +1,161 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        currentUserDoc().role == 'admin' ||
+        request.auth.token.email == 'admin@sdnmaospati3.sch.id'
+      );
+    }
+
+    function isGuru() {
+      return isSignedIn() && currentUserDoc().role == 'guru';
+    }
+
+    function isSubjectTeacher() {
+      return isGuru() && (
+        currentUserDoc().tanggungJawab in [
+          'Pendidikan Agama Islam',
+          'Pendidikan Agama Kristen',
+          'Pendidikan Agama Katolik',
+          'Pendidikan agama Hindu',
+          'Pendidikan agama Budha',
+          'PJOK'
+        ]
+      );
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
+      allow write: if isAdmin() || (request.auth.uid == userId && request.resource.data.role == resource.data.role);
+    }
+
+    // Siswa Collection
+    // Admin can read/write all.
+    // Subject teachers (Agama, PJOK) can read all students.
+    // Class teachers can read and manage students in their assigned class.
+    match /siswa/{siswaId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        isSubjectTeacher() ||
+        (isGuru() && resource.data.kelas == currentUserDoc().tanggungJawab)
+      );
+      allow create, update: if isSignedIn() && (
+        isAdmin() ||
+        (isGuru() && request.resource.data.kelas == currentUserDoc().tanggungJawab)
+      );
+      allow delete: if isSignedIn() && (
+        isAdmin() ||
+        (isGuru() && resource.data.kelas == currentUserDoc().tanggungJawab)
+      );
+    }
+
+    // Absensi Collection
+    match /absensi/{absensiId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        (isGuru() && (
+          isSubjectTeacher() ||
+          resource.data.kelas == currentUserDoc().tanggungJawab ||
+          resource.data.guruId == request.auth.uid
+        ))
+      );
+      allow create, update: if isSignedIn() && (
+        isAdmin() ||
+        (isGuru() && (
+          isSubjectTeacher() ||
+          request.resource.data.kelas == currentUserDoc().tanggungJawab ||
+          request.resource.data.guruId == request.auth.uid
+        ))
+      );
+      allow delete: if isSignedIn() && (
+        isAdmin() ||
+        (isGuru() && resource.data.guruId == request.auth.uid)
+      );
+    }
+
+    // Nilai Collection
+    match /nilai/{nilaiId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        (isGuru() && (
+          isSubjectTeacher() ||
+          resource.data.kelas == currentUserDoc().tanggungJawab ||
+          resource.data.guruId == request.auth.uid
+        ))
+      );
+      allow create, update: if isSignedIn() && (
+        isAdmin() ||
+        (isGuru() && (
+          isSubjectTeacher() ||
+          request.resource.data.kelas == currentUserDoc().tanggungJawab ||
+          request.resource.data.guruId == request.auth.uid
+        ))
+      );
+      allow delete: if isSignedIn() && (
+        isAdmin() ||
+        (isGuru() && resource.data.guruId == request.auth.uid)
+      );
+    }
+
+    // Jurnal Mengajar Collection
+    match /jurnal/{jurnalId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        (isGuru() && resource.data.guruId == request.auth.uid)
+      );
+      allow create, update: if isSignedIn() && (
+        isAdmin() ||
+        (isGuru() && request.resource.data.guruId == request.auth.uid)
+      );
+      allow delete: if isSignedIn() && (
+        isAdmin() ||
+        (isGuru() && resource.data.guruId == request.auth.uid)
+      );
+    }
+
+    // Bimbingan Siswa Collection
+    match /bimbingan/{bimbinganId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        (isGuru() && (
+          resource.data.guruId == request.auth.uid ||
+          resource.data.kelas == currentUserDoc().tanggungJawab
+        ))
+      );
+      allow create, update: if isSignedIn() && (
+        isAdmin() ||
+        (isGuru() && (
+          request.resource.data.guruId == request.auth.uid ||
+          request.resource.data.kelas == currentUserDoc().tanggungJawab
+        ))
+      );
+      allow delete: if isSignedIn() && (
+        isAdmin() ||
+        (isGuru() && resource.data.guruId == request.auth.uid)
+      );
+    }
+
+    // Pengaturan Sekolah
+    match /pengaturan/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

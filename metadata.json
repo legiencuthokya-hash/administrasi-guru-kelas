@@ -1,0 +1,6 @@
+{
+  "name": "Administrasi Guru SD Negeri Maospati 3",
+  "description": "Aplikasi administrasi guru SD Negeri Maospati 3 untuk mengelola absensi, nilai, jurnal mengajar, bimbingan siswa, dan cetak dokumen resmi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
