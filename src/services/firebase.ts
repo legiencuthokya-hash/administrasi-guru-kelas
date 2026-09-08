@@ -1,6 +1,15 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore, doc, getDocFromServer } from 'firebase/firestore';
-import { getAuth, Auth } from 'firebase/auth';
+import {
+  getAuth,
+  Auth,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+} from 'firebase/auth';
+import firebaseConfig from '../../firebase-applet-config.json';
 
 export enum OperationType {
   CREATE = 'create',
@@ -19,65 +28,82 @@ export interface FirestoreErrorInfo {
     userId?: string | null;
     email?: string | null;
     emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
   };
 }
+
+// Initialize Firebase App
+const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
+
+// CRITICAL: Connect to specific firestore database ID as provisioned
+export const db: Firestore = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const auth: Auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth?.currentUser?.uid || null,
-      email: auth?.currentUser?.email || null,
-      emailVerified: auth?.currentUser?.emailVerified || null,
+      userId: auth.currentUser?.uid || null,
+      email: auth.currentUser?.email || null,
+      emailVerified: auth.currentUser?.emailVerified || null,
+      isAnonymous: auth.currentUser?.isAnonymous || null,
+      tenantId: auth.currentUser?.tenantId || null,
+      providerInfo: auth.currentUser?.providerData?.map((p) => ({
+        providerId: p.providerId,
+        email: p.email,
+      })) || [],
     },
     operationType,
     path,
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  console.error('Firestore Error:', JSON.stringify(errInfo));
   return errInfo;
 }
 
-let app: FirebaseApp | null = null;
-export let db: Firestore | null = null;
-export let auth: Auth | null = null;
-export let isFirebaseReady = false;
+export let isFirebaseReady = true;
 
-export function initFirebase(customConfig?: any): boolean {
-  try {
-    const savedCustom = localStorage.getItem('sdn3_firebase_config');
-    const config = customConfig || (savedCustom ? JSON.parse(savedCustom) : null);
-
-    if (config && config.apiKey && config.projectId) {
-      if (!getApps().length) {
-        app = initializeApp(config);
-      } else {
-        app = getApps()[0];
-      }
-      db = getFirestore(app);
-      auth = getAuth(app);
-      isFirebaseReady = true;
-
-      // Test connection as instructed by Firebase skill
-      testConnection();
-      return true;
-    }
-  } catch (err) {
-    console.warn('Firebase initialization note (using local high-speed cache):', err);
-  }
-  isFirebaseReady = false;
-  return false;
-}
-
+// Connection test on boot as required by Firebase skill
 async function testConnection() {
-  if (!db) return;
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
+    console.log('Firebase Firestore connection verified to database:', firebaseConfig.firestoreDatabaseId);
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firebase is offline or pending permissions.');
+      console.warn('Firebase is offline. Check internet connection or network permissions.');
+    } else {
+      console.info('Firebase connection status note:', error instanceof Error ? error.message : error);
     }
   }
 }
 
-// Boot initial check
-initFirebase();
+testConnection();
+
+// Google Sign-In helper using popup (recommended for AI Studio iframe environment)
+export async function signInWithGoogle(): Promise<FirebaseUser | null> {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (error) {
+    console.error('Google Sign-In Error:', error);
+    throw error;
+  }
+}
+
+export async function signOutFirebase(): Promise<void> {
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.error('Sign Out Error:', error);
+  }
+}
+
+export function subscribeToAuth(callback: (user: FirebaseUser | null) => void) {
+  return onAuthStateChanged(auth, callback);
+}

@@ -12,19 +12,29 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function hasUserDoc() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function currentUserDoc() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isAdmin() {
       return isSignedIn() && (
-        currentUserDoc().role == 'admin' ||
-        request.auth.token.email == 'admin@sdnmaospati3.sch.id'
+        (hasUserDoc() && currentUserDoc().role == 'admin') ||
+        (request.auth.token.email != null && request.auth.token.email == 'admin@sdnmaospati3.sch.id')
       );
     }
 
     function isGuru() {
-      return isSignedIn() && currentUserDoc().role == 'guru';
+      return isSignedIn() && hasUserDoc() && currentUserDoc().role == 'guru';
+    }
+
+    // Allow connection test
+    match /test/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
     }
 
     function isSubjectTeacher() {

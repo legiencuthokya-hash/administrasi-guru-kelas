@@ -26,6 +26,7 @@ import {
   getStoredBimbingan,
   saveStoredBimbingan,
   getFilteredSiswa,
+  syncFromFirestore,
 } from './services/storage';
 import { LoginScreen } from './components/LoginScreen';
 import { Header } from './components/Header';
@@ -116,6 +117,18 @@ export default function App() {
     setBimbinganList(getStoredBimbingan());
   };
 
+  const handleSyncCloud = async () => {
+    if (!currentUser) return;
+    await syncFromFirestore(currentUser);
+    setSettings(getStoredSettings());
+    setUsers(getStoredUsers());
+    setSiswaList(getStoredSiswa());
+    setAbsensiList(getStoredAbsensi());
+    setNilaiList(getStoredNilai());
+    setJurnalList(getStoredJurnal());
+    setBimbinganList(getStoredBimbingan());
+  };
+
   // If not logged in, render fullscreen login screen
   if (!currentUser) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
@@ -144,6 +157,7 @@ export default function App() {
           settings={settings}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           onLogout={handleLogout}
+          onSyncCloud={handleSyncCloud}
         />
 
         {/* Scrollable Content (Sidepanel remains fixed) */}

@@ -9,8 +9,18 @@ import {
   User,
 } from '../types';
 import { INITIAL_SCHOOL_SETTINGS, INITIAL_SISWA, INITIAL_USERS } from './initialData';
-import { db, isFirebaseReady } from './firebase';
-import { doc, setDoc, getDocs, collection, deleteDoc } from 'firebase/firestore';
+import { db, isFirebaseReady, handleFirestoreError, OperationType } from './firebase';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  collection,
+  query,
+  where,
+  deleteDoc,
+  writeBatch,
+} from 'firebase/firestore';
 
 const STORAGE_KEYS = {
   USERS: 'sdn3_users_v1',
@@ -55,7 +65,7 @@ export async function saveStoredSettings(settings: SchoolSettings): Promise<void
     try {
       await setDoc(doc(db, 'pengaturan', 'config'), settings);
     } catch (err) {
-      console.warn('Firestore write warning:', err);
+      handleFirestoreError(err, OperationType.WRITE, 'pengaturan/config');
     }
   }
 }
@@ -82,7 +92,7 @@ export async function saveStoredUsers(users: User[]): Promise<void> {
         await setDoc(doc(db, 'users', u.id), u);
       }
     } catch (err) {
-      console.warn('Firestore write warning:', err);
+      handleFirestoreError(err, OperationType.WRITE, 'users');
     }
   }
 }
@@ -109,7 +119,7 @@ export async function saveStoredSiswa(siswaList: Siswa[]): Promise<void> {
         await setDoc(doc(db, 'siswa', s.id), s);
       }
     } catch (err) {
-      console.warn('Firestore write warning:', err);
+      handleFirestoreError(err, OperationType.WRITE, 'siswa');
     }
   }
 }
@@ -149,7 +159,7 @@ export async function saveStoredAbsensi(absensiList: Absensi[]): Promise<void> {
         await setDoc(doc(db, 'absensi', a.id), a);
       }
     } catch (err) {
-      console.warn('Firestore write warning:', err);
+      handleFirestoreError(err, OperationType.WRITE, 'absensi');
     }
   }
 }
@@ -175,7 +185,7 @@ export async function saveStoredNilai(nilaiList: Nilai[]): Promise<void> {
         await setDoc(doc(db, 'nilai', n.id), n);
       }
     } catch (err) {
-      console.warn('Firestore write warning:', err);
+      handleFirestoreError(err, OperationType.WRITE, 'nilai');
     }
   }
 }
@@ -201,7 +211,7 @@ export async function saveStoredJurnal(jurnalList: JurnalMengajar[]): Promise<vo
         await setDoc(doc(db, 'jurnal', j.id), j);
       }
     } catch (err) {
-      console.warn('Firestore write warning:', err);
+      handleFirestoreError(err, OperationType.WRITE, 'jurnal');
     }
   }
 }
@@ -227,7 +237,7 @@ export async function saveStoredBimbingan(bimbinganList: BimbinganSiswa[]): Prom
         await setDoc(doc(db, 'bimbingan', b.id), b);
       }
     } catch (err) {
-      console.warn('Firestore write warning:', err);
+      handleFirestoreError(err, OperationType.WRITE, 'bimbingan');
     }
   }
 }
@@ -318,4 +328,281 @@ export function parseCSV(text: string): string[][] {
     const delimiter = line.includes(';') ? ';' : ',';
     return line.split(delimiter).map((col) => col.trim().replace(/^["']|["']$/g, ''));
   });
+}
+
+// Cloud Firestore Synchronization (Designed to strictly conserve read/write quota)
+export async function syncFromFirestore(user: User): Promise<{
+  success: boolean;
+  message: string;
+  counts?: { [key: string]: number };
+}> {
+  if (!db) {
+    return { success: false, message: 'Koneksi Firestore belum siap.' };
+  }
+
+  try {
+    const counts: { [key: string]: number } = {};
+
+    // 1. Always pull latest school settings
+    try {
+      const settingsSnap = await getDoc(doc(db, 'pengaturan', 'config'));
+      if (settingsSnap.exists()) {
+        const cloudSettings = settingsSnap.data() as SchoolSettings;
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(cloudSettings));
+        counts.pengaturan = 1;
+      }
+    } catch (e) {
+      handleFirestoreError(e, OperationType.GET, 'pengaturan/config');
+    }
+
+    if (user.role === 'admin') {
+      // Admin: Pull all collections
+      try {
+        const usersSnap = await getDocs(collection(db, 'users'));
+        if (!usersSnap.empty) {
+          const list = usersSnap.docs.map((d) => d.data() as User);
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(list));
+          counts.users = list.length;
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.LIST, 'users');
+      }
+
+      try {
+        const siswaSnap = await getDocs(collection(db, 'siswa'));
+        if (!siswaSnap.empty) {
+          const list = siswaSnap.docs.map((d) => d.data() as Siswa);
+          localStorage.setItem(STORAGE_KEYS.SISWA, JSON.stringify(list));
+          counts.siswa = list.length;
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.LIST, 'siswa');
+      }
+
+      try {
+        const absensiSnap = await getDocs(collection(db, 'absensi'));
+        if (!absensiSnap.empty) {
+          const list = absensiSnap.docs.map((d) => d.data() as Absensi);
+          localStorage.setItem(STORAGE_KEYS.ABSENSI, JSON.stringify(list));
+          counts.absensi = list.length;
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.LIST, 'absensi');
+      }
+
+      try {
+        const nilaiSnap = await getDocs(collection(db, 'nilai'));
+        if (!nilaiSnap.empty) {
+          const list = nilaiSnap.docs.map((d) => d.data() as Nilai);
+          localStorage.setItem(STORAGE_KEYS.NILAI, JSON.stringify(list));
+          counts.nilai = list.length;
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.LIST, 'nilai');
+      }
+
+      try {
+        const jurnalSnap = await getDocs(collection(db, 'jurnal'));
+        if (!jurnalSnap.empty) {
+          const list = jurnalSnap.docs.map((d) => d.data() as JurnalMengajar);
+          localStorage.setItem(STORAGE_KEYS.JURNAL, JSON.stringify(list));
+          counts.jurnal = list.length;
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.LIST, 'jurnal');
+      }
+
+      try {
+        const bimbinganSnap = await getDocs(collection(db, 'bimbingan'));
+        if (!bimbinganSnap.empty) {
+          const list = bimbinganSnap.docs.map((d) => d.data() as BimbinganSiswa);
+          localStorage.setItem(STORAGE_KEYS.BIMBINGAN, JSON.stringify(list));
+          counts.bimbingan = list.length;
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.LIST, 'bimbingan');
+      }
+
+      return {
+        success: true,
+        message: 'Berhasil menyinkronkan seluruh database instansi dari Cloud Firestore.',
+        counts,
+      };
+    } else {
+      // Guru: Strictly pull only assigned class / records to conserve quota
+      if (isGuruMapelUmum(user.tanggungJawab)) {
+        try {
+          const siswaSnap = await getDocs(collection(db, 'siswa'));
+          if (!siswaSnap.empty) {
+            const list = siswaSnap.docs.map((d) => d.data() as Siswa);
+            localStorage.setItem(STORAGE_KEYS.SISWA, JSON.stringify(list));
+            counts.siswa = list.length;
+          }
+        } catch (e) {
+          handleFirestoreError(e, OperationType.LIST, 'siswa');
+        }
+      } else {
+        try {
+          const qSiswa = query(collection(db, 'siswa'), where('kelas', '==', user.tanggungJawab));
+          const snap = await getDocs(qSiswa);
+          if (!snap.empty) {
+            const teacherSiswa = snap.docs.map((d) => d.data() as Siswa);
+            const allLocal = getStoredSiswa().filter((s) => s.kelas !== user.tanggungJawab);
+            const merged = [...allLocal, ...teacherSiswa];
+            localStorage.setItem(STORAGE_KEYS.SISWA, JSON.stringify(merged));
+            counts.siswa = teacherSiswa.length;
+          }
+        } catch (e) {
+          handleFirestoreError(e, OperationType.LIST, 'siswa');
+        }
+      }
+
+      // Absensi for this class or teacher
+      try {
+        const qAbsen = isGuruMapelUmum(user.tanggungJawab)
+          ? query(collection(db, 'absensi'), where('guruId', '==', user.id))
+          : query(collection(db, 'absensi'), where('kelas', '==', user.tanggungJawab));
+        const snap = await getDocs(qAbsen);
+        if (!snap.empty) {
+          const cloudAbsen = snap.docs.map((d) => d.data() as Absensi);
+          const otherLocal = getStoredAbsensi().filter(
+            (a) => a.guruId !== user.id && a.kelas !== user.tanggungJawab
+          );
+          localStorage.setItem(STORAGE_KEYS.ABSENSI, JSON.stringify([...otherLocal, ...cloudAbsen]));
+          counts.absensi = cloudAbsen.length;
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.LIST, 'absensi');
+      }
+
+      // Nilai
+      try {
+        const qNilai = query(collection(db, 'nilai'), where('guruId', '==', user.id));
+        const snap = await getDocs(qNilai);
+        if (!snap.empty) {
+          const cloudNilai = snap.docs.map((d) => d.data() as Nilai);
+          const otherLocal = getStoredNilai().filter((n) => n.guruId !== user.id);
+          localStorage.setItem(STORAGE_KEYS.NILAI, JSON.stringify([...otherLocal, ...cloudNilai]));
+          counts.nilai = cloudNilai.length;
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.LIST, 'nilai');
+      }
+
+      // Jurnal
+      try {
+        const qJurnal = query(collection(db, 'jurnal'), where('guruId', '==', user.id));
+        const snap = await getDocs(qJurnal);
+        if (!snap.empty) {
+          const cloudJurnal = snap.docs.map((d) => d.data() as JurnalMengajar);
+          const otherLocal = getStoredJurnal().filter((j) => j.guruId !== user.id);
+          localStorage.setItem(STORAGE_KEYS.JURNAL, JSON.stringify([...otherLocal, ...cloudJurnal]));
+          counts.jurnal = cloudJurnal.length;
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.LIST, 'jurnal');
+      }
+
+      // Bimbingan
+      try {
+        const qBimb = query(collection(db, 'bimbingan'), where('guruId', '==', user.id));
+        const snap = await getDocs(qBimb);
+        if (!snap.empty) {
+          const cloudBimb = snap.docs.map((d) => d.data() as BimbinganSiswa);
+          const otherLocal = getStoredBimbingan().filter((b) => b.guruId !== user.id);
+          localStorage.setItem(STORAGE_KEYS.BIMBINGAN, JSON.stringify([...otherLocal, ...cloudBimb]));
+          counts.bimbingan = cloudBimb.length;
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.LIST, 'bimbingan');
+      }
+
+      return {
+        success: true,
+        message: `Berhasil menyinkronkan data tugas untuk ${user.tanggungJawab} dari Cloud Firestore.`,
+        counts,
+      };
+    }
+  } catch (error) {
+    const err = handleFirestoreError(error, OperationType.GET, null);
+    return {
+      success: false,
+      message: `Gagal menyinkronkan dari Firestore: ${err.error}`,
+    };
+  }
+}
+
+// Backup / Seed All Local Data to Cloud Firestore (Admin function)
+export async function backupAllToFirestore(): Promise<{
+  success: boolean;
+  message: string;
+  totalRecords: number;
+}> {
+  if (!db) {
+    return { success: false, message: 'Koneksi Firestore belum siap.', totalRecords: 0 };
+  }
+
+  try {
+    let total = 0;
+
+    // 1. Settings
+    const settings = getStoredSettings();
+    await setDoc(doc(db, 'pengaturan', 'config'), settings);
+    total += 1;
+
+    // 2. Users
+    const users = getStoredUsers();
+    for (const u of users) {
+      await setDoc(doc(db, 'users', u.id), u);
+      total += 1;
+    }
+
+    // 3. Siswa
+    const siswa = getStoredSiswa();
+    for (const s of siswa) {
+      await setDoc(doc(db, 'siswa', s.id), s);
+      total += 1;
+    }
+
+    // 4. Absensi
+    const absensi = getStoredAbsensi();
+    for (const a of absensi) {
+      await setDoc(doc(db, 'absensi', a.id), a);
+      total += 1;
+    }
+
+    // 5. Nilai
+    const nilai = getStoredNilai();
+    for (const n of nilai) {
+      await setDoc(doc(db, 'nilai', n.id), n);
+      total += 1;
+    }
+
+    // 6. Jurnal
+    const jurnal = getStoredJurnal();
+    for (const j of jurnal) {
+      await setDoc(doc(db, 'jurnal', j.id), j);
+      total += 1;
+    }
+
+    // 7. Bimbingan
+    const bimbingan = getStoredBimbingan();
+    for (const b of bimbingan) {
+      await setDoc(doc(db, 'bimbingan', b.id), b);
+      total += 1;
+    }
+
+    return {
+      success: true,
+      message: `Berhasil mencadangkan ${total} data ke Cloud Firestore secara lengkap.`,
+      totalRecords: total,
+    };
+  } catch (error) {
+    const err = handleFirestoreError(error, OperationType.WRITE, null);
+    return {
+      success: false,
+      message: `Gagal mencadangkan ke Firestore: ${err.error}`,
+      totalRecords: 0,
+    };
+  }
 }

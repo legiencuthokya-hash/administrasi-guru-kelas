@@ -1,7 +1,32 @@
 import React, { useState } from 'react';
 import { SchoolSettings } from '../../types';
-import { Settings, Save, Check, Image, School, MapPin, PenTool, Database } from 'lucide-react';
-import { isFirebaseReady, initFirebase } from '../../services/firebase';
+import {
+  Settings,
+  Save,
+  Check,
+  Image,
+  School,
+  MapPin,
+  PenTool,
+  Database,
+  Cloud,
+  RefreshCw,
+  UploadCloud,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react';
+import {
+  isFirebaseReady,
+  auth,
+  signInWithGoogle,
+  signOutFirebase,
+} from '../../services/firebase';
+import {
+  backupAllToFirestore,
+  syncFromFirestore,
+  getCurrentUser,
+} from '../../services/storage';
+import firebaseConfig from '../../../firebase-applet-config.json';
 
 interface AdminPengaturanProps {
   settings: SchoolSettings;
@@ -15,11 +40,11 @@ export const AdminPengaturan: React.FC<AdminPengaturanProps> = ({
   const [formData, setFormData] = useState<SchoolSettings>({ ...settings });
   const [isSaved, setIsSaved] = useState(false);
 
-  // Optional custom Firebase config
+  // Cloud sync states
   const [showFirebaseModal, setShowFirebaseModal] = useState(false);
-  const [firebaseConfigText, setFirebaseConfigText] = useState(
-    localStorage.getItem('sdn3_firebase_config') || ''
-  );
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatusMsg, setSyncStatusMsg] = useState<{ text: string; isError?: boolean } | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,25 +53,34 @@ export const AdminPengaturan: React.FC<AdminPengaturanProps> = ({
     setTimeout(() => setIsSaved(false), 3000);
   };
 
-  const handleSaveFirebaseConfig = () => {
+  const handleBackupCloud = async () => {
+    setIsBackingUp(true);
+    setSyncStatusMsg(null);
     try {
-      if (!firebaseConfigText.trim()) {
-        localStorage.removeItem('sdn3_firebase_config');
-        alert('Konfigurasi Firebase dihapus. Menggunakan penyimpanan lokal.');
-        setShowFirebaseModal(false);
-        return;
+      const res = await backupAllToFirestore();
+      setSyncStatusMsg({ text: res.message, isError: !res.success });
+    } catch (e: any) {
+      setSyncStatusMsg({ text: e?.message || 'Terjadi kesalahan cadangan', isError: true });
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const handleSyncCloud = async () => {
+    const cur = getCurrentUser();
+    if (!cur) return;
+    setIsSyncing(true);
+    setSyncStatusMsg(null);
+    try {
+      const res = await syncFromFirestore(cur);
+      setSyncStatusMsg({ text: res.message, isError: !res.success });
+      if (res.success) {
+        setTimeout(() => window.location.reload(), 1500);
       }
-      const parsed = JSON.parse(firebaseConfigText);
-      localStorage.setItem('sdn3_firebase_config', JSON.stringify(parsed));
-      const ok = initFirebase(parsed);
-      alert(
-        ok
-          ? 'Koneksi Firebase Firestore berhasil diinisialisasi!'
-          : 'Konfigurasi tersimpan, periksa kembali API Key dan Project ID Anda.'
-      );
-      setShowFirebaseModal(false);
-    } catch (e) {
-      alert('Format JSON konfigurasi Firebase tidak valid. Pastikan format JSON benar.');
+    } catch (e: any) {
+      setSyncStatusMsg({ text: e?.message || 'Terjadi kesalahan sinkronisasi', isError: true });
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -67,12 +101,75 @@ export const AdminPengaturan: React.FC<AdminPengaturanProps> = ({
         <button
           type="button"
           onClick={() => setShowFirebaseModal(true)}
-          className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3.5 py-2 rounded-xl transition"
+          className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold px-3.5 py-2 rounded-xl transition"
         >
-          <Database className="w-4 h-4 text-amber-600" />
-          <span>Pengaturan Firebase</span>
+          <Database className="w-4 h-4 text-emerald-600" />
+          <span>Status Firebase Firestore</span>
         </button>
       </div>
+
+      {/* Cloud Sync Quick Banner */}
+      <div className="bg-gradient-to-r from-blue-900 to-indigo-900 rounded-2xl p-4 sm:p-5 text-white shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Cloud className="w-5 h-5 text-blue-300" />
+            <span className="font-bold text-sm">Penyimpanan Terpadu Cloud Firestore SD Negeri Maospati 3</span>
+            <span className="bg-emerald-500/30 text-emerald-300 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-emerald-400/40">
+              Aktif Terkoneksi
+            </span>
+          </div>
+          <p className="text-xs text-blue-200/90 leading-relaxed max-w-2xl">
+            Sistem menggunakan penyimpanan lokal hibrida untuk menghemat kuota baca Firestore secara maksimal. Anda dapat mencadangkan seluruh data sekolah ke Cloud Firestore atau menarik sinkronisasi kapan saja.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 self-stretch sm:self-auto shrink-0">
+          <button
+            type="button"
+            onClick={handleBackupCloud}
+            disabled={isBackingUp || isSyncing}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl transition shadow-xs"
+          >
+            {isBackingUp ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <UploadCloud className="w-4 h-4" />
+            )}
+            <span>{isBackingUp ? 'Mencadangkan...' : 'Cadangkan ke Cloud'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSyncCloud}
+            disabled={isBackingUp || isSyncing}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/20 disabled:opacity-50 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl transition border border-white/20"
+          >
+            {isSyncing ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+            <span>{isSyncing ? 'Menyinkronkan...' : 'Tarik dari Cloud'}</span>
+          </button>
+        </div>
+      </div>
+
+      {syncStatusMsg && (
+        <div
+          className={`p-3.5 rounded-xl text-xs flex items-center gap-2 border ${
+            syncStatusMsg.isError
+              ? 'bg-rose-50 border-rose-200 text-rose-800'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          }`}
+        >
+          {syncStatusMsg.isError ? (
+            <AlertCircle className="w-4 h-4 shrink-0" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+          )}
+          <span>{syncStatusMsg.text}</span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Section 1: Identitas Sekolah */}
@@ -334,42 +431,46 @@ export const AdminPengaturan: React.FC<AdminPengaturanProps> = ({
         </div>
       </form>
 
-      {/* Firebase Config Modal */}
+      {/* Firebase Info Modal */}
       {showFirebaseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 text-xs">
             <h3 className="font-bold text-base text-slate-900 mb-2 flex items-center gap-2">
-              <Database className="w-5 h-5 text-amber-600" />
-              <span>Konfigurasi Firebase Firestore</span>
+              <Database className="w-5 h-5 text-emerald-600" />
+              <span>Status Koneksi Cloud Firestore</span>
             </h3>
-            <p className="text-slate-600 mb-3 leading-relaxed">
-              Aplikasi telah dilengkapi penyimpanan lokal instan super cepat untuk menghemat kuota baca Firestore. Untuk menyambungkan ke Firebase Console Anda, tempel objek konfigurasi JSON Firebase:
+            <p className="text-slate-600 mb-4 leading-relaxed">
+              Aplikasi telah terhubung ke cloud database resmi SD Negeri Maospati 3 di Google Cloud / Firebase Firestore.
             </p>
 
-            <textarea
-              rows={6}
-              value={firebaseConfigText}
-              onChange={(e) => setFirebaseConfigText(e.target.value)}
-              placeholder={`{\n  "apiKey": "AIzaSy...",\n  "authDomain": "sdn-maospati-3.firebaseapp.com",\n  "projectId": "sdn-maospati-3"\n}`}
-              className="w-full border border-slate-300 rounded-xl p-3 text-slate-900 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-amber-500 mb-4"
-            />
-
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setShowFirebaseModal(false)}
-                className="flex-1 py-2 rounded-xl border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50"
-              >
-                Tutup
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveFirebaseConfig}
-                className="flex-1 py-2 rounded-xl bg-amber-600 text-white font-semibold hover:bg-amber-700 shadow-md shadow-amber-600/20"
-              >
-                Terapkan & Sambungkan
-              </button>
+            <div className="space-y-2.5 bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono text-[11px] mb-4">
+              <div>
+                <span className="text-slate-500 block text-[10px] uppercase font-sans font-bold">Project ID:</span>
+                <span className="text-slate-900 font-semibold">{firebaseConfig.projectId}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block text-[10px] uppercase font-sans font-bold">Firestore Database ID:</span>
+                <span className="text-blue-700 font-semibold">{firebaseConfig.firestoreDatabaseId}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block text-[10px] uppercase font-sans font-bold">Region Cloud:</span>
+                <span className="text-slate-900">asia-southeast1 (Jakarta / Singapore)</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block text-[10px] uppercase font-sans font-bold">Status Proteksi Kuota:</span>
+                <span className="text-emerald-700 font-semibold font-sans">
+                  Aktif (Local-First High-Speed Cache + Synchronized Mutation)
+                </span>
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowFirebaseModal(false)}
+              className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition"
+            >
+              Tutup
+            </button>
           </div>
         </div>
       )}

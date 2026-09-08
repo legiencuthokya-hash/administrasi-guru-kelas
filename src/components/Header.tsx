@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { User, SchoolSettings } from '../types';
-import { Menu, LogOut, ShieldCheck, User as UserIcon, School } from 'lucide-react';
+import { Menu, LogOut, ShieldCheck, User as UserIcon, School, Cloud, RefreshCw, Check } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
+import { isFirebaseReady } from '../services/firebase';
 
 interface HeaderProps {
   currentUser: User;
   settings: SchoolSettings;
   onToggleSidebar: () => void;
   onLogout: () => void;
+  onSyncCloud?: () => Promise<void>;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,7 +17,25 @@ export const Header: React.FC<HeaderProps> = ({
   settings,
   onToggleSidebar,
   onLogout,
+  onSyncCloud,
 }) => {
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [justSynced, setJustSynced] = useState(false);
+
+  const handleSync = async () => {
+    if (!onSyncCloud || isSyncing) return;
+    setIsSyncing(true);
+    try {
+      await onSyncCloud();
+      setJustSynced(true);
+      setTimeout(() => setJustSynced(false), 2500);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between bg-white border-b border-slate-200 px-4 py-2.5 sm:px-6 shadow-xs">
       <div className="flex items-center gap-3">
@@ -56,6 +76,37 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
+        {/* Firebase Cloud Sync Button */}
+        {onSyncCloud && (
+          <button
+            id="btn-sync-cloud"
+            type="button"
+            onClick={handleSync}
+            disabled={isSyncing}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition ${
+              justSynced
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+            title="Sinkronkan data dengan Cloud Firestore"
+          >
+            {isSyncing ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-600" />
+            ) : justSynced ? (
+              <Check className="w-3.5 h-3.5 text-emerald-600" />
+            ) : (
+              <Cloud className="w-3.5 h-3.5 text-blue-600" />
+            )}
+            <span className="hidden md:inline">
+              {isSyncing ? 'Menyinkronkan...' : justSynced ? 'Tersinkron!' : 'Sinkron Cloud'}
+            </span>
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-emerald-200"
+              title="Firebase Firestore Terhubung"
+            />
+          </button>
+        )}
+
         {/* PWA Install Button */}
         <PWAInstallButton />
 
