@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SchoolSettings } from '../../types';
+import { SchoolSettings, TemaWarnaId } from '../../types';
 import {
   Settings,
   Save,
@@ -16,6 +16,7 @@ import {
   AlertCircle,
   LogIn,
   LogOut,
+  Palette,
 } from 'lucide-react';
 import {
   isFirebaseReady,
@@ -30,17 +31,26 @@ import {
 } from '../../services/storage';
 import firebaseConfig from '../../../firebase-applet-config.json';
 import { User as FirebaseUser } from 'firebase/auth';
+import { ThemePicker } from '../ThemePicker';
+import { getThemeConfig } from '../../services/theme';
 
 interface AdminPengaturanProps {
   settings: SchoolSettings;
   onSaveSettings: (updated: SchoolSettings) => void;
+  currentTheme?: TemaWarnaId;
+  onSelectTheme?: (id: TemaWarnaId) => void;
 }
 
 export const AdminPengaturan: React.FC<AdminPengaturanProps> = ({
   settings,
   onSaveSettings,
+  currentTheme = 'blue',
+  onSelectTheme,
 }) => {
-  const [formData, setFormData] = useState<SchoolSettings>({ ...settings });
+  const [formData, setFormData] = useState<SchoolSettings>({
+    ...settings,
+    defaultTemaWarna: settings.defaultTemaWarna || 'blue',
+  });
   const [isSaved, setIsSaved] = useState(false);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
 
@@ -466,6 +476,35 @@ export const AdminPengaturan: React.FC<AdminPengaturanProps> = ({
               )}
             </div>
           </div>
+        </div>
+
+        {/* Section 5: Pilihan Warna Halaman & Tema Aplikasi */}
+        <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4 text-xs">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2 font-bold text-slate-800 text-sm">
+              <Palette className="w-4 h-4 text-indigo-600" />
+              <span>Pilihan Warna Halaman & Tema Baku Sekolah</span>
+            </div>
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+              Tema Terpilih: {getThemeConfig(formData.defaultTemaWarna || currentTheme).name}
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Sebagai Administrator, Anda dapat memilih palet warna tampilan Anda sendiri serta menetapkan tema baku (default) bagi seluruh guru baru di SD Negeri Maospati 3.
+          </p>
+
+          <ThemePicker
+            currentTheme={formData.defaultTemaWarna || currentTheme}
+            onSelectTheme={(newThemeId) => {
+              setFormData((prev) => ({ ...prev, defaultTemaWarna: newThemeId }));
+              if (onSelectTheme) {
+                onSelectTheme(newThemeId);
+              }
+            }}
+            title="Katalog Tema Warna Resmi Aplikasi"
+            subtitle="Klik salah satu tema di bawah ini untuk langsung mengubah suasana warna seluruh sistem secara instan."
+          />
         </div>
 
         {/* Submit Bar */}

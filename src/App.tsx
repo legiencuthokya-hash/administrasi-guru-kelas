@@ -8,6 +8,7 @@ import {
   JurnalMengajar,
   BimbinganSiswa,
   JadwalSlot,
+  TemaWarnaId,
 } from './types';
 import {
   getCurrentUser,
@@ -33,6 +34,12 @@ import {
   syncFromFirestore,
 } from './services/storage';
 import { auth, signInWithGoogle } from './services/firebase';
+import {
+  getStoredUserTheme,
+  saveUserTheme,
+  applyThemeToDOM,
+  getThemeConfig,
+} from './services/theme';
 import { LoginScreen } from './components/LoginScreen';
 import { Header } from './components/Header';
 import { Sidebar, ActiveTab } from './components/Sidebar';
@@ -54,6 +61,8 @@ import { AdminSiswa } from './components/admin/AdminSiswa';
 import { AdminPengaturan } from './components/admin/AdminPengaturan';
 import { GuruProfile } from './components/GuruProfile';
 import { ResetDataGuruModal } from './components/ResetDataGuruModal';
+import { ThemePicker } from './components/ThemePicker';
+import { Palette, X } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurUser] = useState<User | null>(getCurrentUser());
@@ -70,6 +79,46 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [isResetGuruModalOpen, setIsResetGuruModalOpen] = useState(false);
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+
+  // Theme state
+  const [activeTheme, setActiveTheme] = useState<TemaWarnaId>(() => {
+    const current = getCurrentUser();
+    const stg = getStoredSettings();
+    return getStoredUserTheme(current?.id, current?.temaWarna, stg.defaultTemaWarna);
+  });
+
+  // Apply theme to DOM on mount and change
+  useEffect(() => {
+    const cfg = getThemeConfig(activeTheme);
+    applyThemeToDOM(cfg);
+  }, [activeTheme]);
+
+  // Sync theme when user or settings changes
+  useEffect(() => {
+    if (currentUser) {
+      const userTheme = getStoredUserTheme(currentUser.id, currentUser.temaWarna, settings.defaultTemaWarna);
+      setActiveTheme(userTheme);
+    } else {
+      const defaultTheme = (settings.defaultTemaWarna as TemaWarnaId) || 'blue';
+      setActiveTheme(defaultTheme);
+    }
+  }, [currentUser?.id, currentUser?.temaWarna, settings.defaultTemaWarna]);
+
+  const handleSelectTheme = (newThemeId: TemaWarnaId) => {
+    setActiveTheme(newThemeId);
+    const cfg = getThemeConfig(newThemeId);
+    applyThemeToDOM(cfg);
+    if (currentUser) {
+      saveUserTheme(currentUser.id, newThemeId);
+      const updatedUser: User = { ...currentUser, temaWarna: newThemeId };
+      setCurUser(updatedUser);
+      setCurrentUser(updatedUser);
+      const nextUsers = users.map((u) => (u.id === updatedUser.id ? updatedUser : u));
+      setUsers(nextUsers);
+      saveStoredUsers(nextUsers);
+    }
+  };
 
   // Sync state on user change
   const handleLoginSuccess = (user: User) => {
@@ -181,6 +230,8 @@ export default function App() {
         setActiveTab={setActiveTab}
         currentUser={currentUser}
         onOpenResetGuruModal={() => setIsResetGuruModalOpen(true)}
+        currentTheme={activeTheme}
+        onOpenThemeModal={() => setIsThemeModalOpen(true)}
       />
 
       {/* Main View Area */}
@@ -189,6 +240,8 @@ export default function App() {
         <Header
           currentUser={currentUser}
           settings={settings}
+          currentTheme={activeTheme}
+          onSelectTheme={handleSelectTheme}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           onLogout={handleLogout}
           onSyncCloud={handleSyncCloud}
@@ -205,6 +258,7 @@ export default function App() {
               jurnalList={jurnalList}
               bimbinganList={bimbinganList}
               onNavigate={setActiveTab}
+              currentTheme={activeTheme}
             />
           )}
 
@@ -327,13 +381,17 @@ export default function App() {
             <AdminPengaturan
               settings={settings}
               onSaveSettings={handleSaveSettings}
+              currentTheme={activeTheme}
+              onSelectTheme={handleSelectTheme}
             />
           )}
 
-          {/* Guru Profile & TTD */}
+          {/* Guru Profile, TTD & Warna */}
           {currentUser.role === 'guru' && activeTab === 'guru-profile' && (
             <GuruProfile
               currentUser={currentUser}
+              currentTheme={activeTheme}
+              onSelectTheme={handleSelectTheme}
               onUpdateUser={(updated) => {
                 setCurUser(updated);
                 const nextUsers = users.map((u) =>
@@ -354,6 +412,60 @@ export default function App() {
         guruNama={currentUser.nama}
         onSuccess={handleRefreshAllData}
       />
+
+      {/* Global Theme Selector Modal */}
+      {isThemeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div
+                  className="p-2 rounded-xl text-white shadow-xs"
+                  style={{ backgroundColor: getThemeConfig(activeTheme).hex }}
+                >
+                  <Palette className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900 leading-tight">
+                    Pilihan Warna Halaman & Tema Aplikasi
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Sesuaikan suasana warna aplikasi agar nyaman digunakan.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsThemeModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                title="Tutup"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <ThemePicker
+              currentTheme={activeTheme}
+              onSelectTheme={(newId) => {
+                handleSelectTheme(newId);
+              }}
+              title="Koleksi Skema Warna Resmi SD Negeri Maospati 3"
+              subtitle="Pilih salah satu dari 8 palet warna yang telah disesuaikan dengan kenyamanan visual dan keterbacaan."
+            />
+
+            <div className="pt-3 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsThemeModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white transition shadow-sm cursor-pointer"
+                style={{ backgroundColor: getThemeConfig(activeTheme).hex }}
+              >
+                Selesai & Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

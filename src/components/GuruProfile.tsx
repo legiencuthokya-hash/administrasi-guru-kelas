@@ -1,31 +1,59 @@
 import React, { useState } from 'react';
-import { User } from '../types';
-import { PenTool, Save, Check, Lock, User as UserIcon } from 'lucide-react';
+import { User, TemaWarnaId } from '../types';
+import { PenTool, Save, Check, Lock, User as UserIcon, Palette } from 'lucide-react';
 import { setCurrentUser } from '../services/storage';
+import { ThemePicker } from './ThemePicker';
+import { getThemeConfig, saveUserTheme } from '../services/theme';
 
 interface GuruProfileProps {
   currentUser: User;
   onUpdateUser: (updated: User) => void;
+  currentTheme?: TemaWarnaId;
+  onSelectTheme?: (id: TemaWarnaId) => void;
 }
 
 export const GuruProfile: React.FC<GuruProfileProps> = ({
   currentUser,
   onUpdateUser,
+  currentTheme = 'blue',
+  onSelectTheme,
 }) => {
+  const [selectedTheme, setSelectedTheme] = useState<TemaWarnaId>(
+    (currentUser.temaWarna as TemaWarnaId) || currentTheme || 'blue'
+  );
   const [tandaTanganUrl, setTandaTanganUrl] = useState(
     currentUser.tandaTanganUrl || ''
   );
   const [password, setPassword] = useState(currentUser.password || 'Garuda123');
   const [isSaved, setIsSaved] = useState(false);
 
+  const themeConfig = getThemeConfig(selectedTheme);
+
+  const handleThemeChange = (newThemeId: TemaWarnaId) => {
+    setSelectedTheme(newThemeId);
+    saveUserTheme(currentUser.id, newThemeId);
+    if (onSelectTheme) {
+      onSelectTheme(newThemeId);
+    }
+    const updated: User = {
+      ...currentUser,
+      temaWarna: newThemeId,
+      updatedAt: new Date().toISOString(),
+    };
+    setCurrentUser(updated);
+    onUpdateUser(updated);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const updated: User = {
       ...currentUser,
+      temaWarna: selectedTheme,
       tandaTanganUrl: tandaTanganUrl.trim(),
       password: password.trim(),
       updatedAt: new Date().toISOString(),
     };
+    saveUserTheme(currentUser.id, selectedTheme);
     setCurrentUser(updated);
     onUpdateUser(updated);
     setIsSaved(true);
@@ -33,19 +61,52 @@ export const GuruProfile: React.FC<GuruProfileProps> = ({
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-        <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-          <PenTool className="w-5 h-5 text-indigo-600" />
-          <span>Pengaturan Tanda Tangan Digital Guru</span>
-        </h2>
-        <p className="text-xs text-slate-500 mt-0.5">
-          Kelola URL scan tanda tangan Anda untuk disematkan secara otomatis pada seluruh dokumen cetak resmi.
-        </p>
+      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+            <UserIcon className="w-5 h-5 text-indigo-600" />
+            <span>Pengaturan Akun, Warna & TTD Guru</span>
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Sesuaikan tema warna tampilan halaman, kata sandi, dan tanda tangan digital untuk berkas cetak resmi.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: themeConfig.hex }} />
+          <span className="font-semibold text-slate-700">{themeConfig.name}</span>
+        </div>
       </div>
 
-      {/* Profile summary card */}
+      {/* Theme Picker Section */}
+      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+          <div
+            className="p-1.5 rounded-xl text-white shadow-xs"
+            style={{ backgroundColor: themeConfig.hex }}
+          >
+            <Palette className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm text-slate-900">
+              Pilihan Warna Halaman & Tema Anda
+            </h3>
+            <p className="text-[11px] text-slate-500">
+              Pilih warna favorit Anda. Warna akan otomatis tersimpan dan aktif setiap kali Anda masuk ke akun guru Anda.
+            </p>
+          </div>
+        </div>
+
+        <ThemePicker
+          currentTheme={selectedTheme}
+          onSelectTheme={handleThemeChange}
+          title="Pilih Skema Warna Tampilan Guru"
+          subtitle="Setiap guru dapat memilih tema warna yang paling nyaman di mata saat mengajar dan menginput nilai."
+        />
+      </div>
+
+      {/* Profile summary card & Signature Form */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4 text-xs">
         <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
           <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-lg">

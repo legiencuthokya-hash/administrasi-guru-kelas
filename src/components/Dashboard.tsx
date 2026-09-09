@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, SchoolSettings, Siswa, Absensi, JurnalMengajar, BimbinganSiswa } from '../types';
+import { User, SchoolSettings, Siswa, Absensi, JurnalMengajar, BimbinganSiswa, TemaWarnaId } from '../types';
 import { ActiveTab } from './Sidebar';
 import {
   Users,
@@ -17,6 +17,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { isFirebaseReady } from '../services/firebase';
+import { getThemeConfig } from '../services/theme';
 
 interface DashboardProps {
   currentUser: User;
@@ -26,6 +27,7 @@ interface DashboardProps {
   jurnalList: JurnalMengajar[];
   bimbinganList: BimbinganSiswa[];
   onNavigate: (tab: ActiveTab) => void;
+  currentTheme?: TemaWarnaId;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -36,10 +38,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
   jurnalList,
   bimbinganList,
   onNavigate,
+  currentTheme = 'blue',
 }) => {
   const isAdmin = currentUser.role === 'admin';
   const today = new Date().toISOString().split('T')[0];
   const isWeekend = new Date().getDay() === 0 || new Date().getDay() === 6;
+  const theme = getThemeConfig(currentTheme);
 
   // Filter attendance for today
   const todayAbsen = absensiList.filter((a) => a.tanggal === today);
@@ -60,18 +64,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner / Welcome Card */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className={`bg-gradient-to-r ${theme.classes.bannerGradient} rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden`}>
+        <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         
         <div className="relative z-10 max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-semibold mb-3 border border-blue-400/20">
+          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${theme.classes.bannerBadge} text-xs font-semibold mb-3 border`}>
             <CheckCircle2 className="w-3.5 h-3.5" />
             <span>Tahun Ajaran {settings.tahunAjaranAktif} • Semester {settings.semesterAktif}</span>
           </div>
           <h2 className="text-xl sm:text-3xl font-black tracking-tight">
             Selamat Datang, {currentUser.nama}!
           </h2>
-          <p className="text-xs sm:text-sm text-blue-200 mt-2 leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-100/90 mt-2 leading-relaxed">
             {isAdmin
               ? 'Anda login sebagai Administrator Sekolah dengan wewenang mengelola seluruh data guru, siswa, dan konfigurasi resmi SD Negeri Maospati 3.'
               : `Anda bertugas sebagai Guru ${currentUser.tanggungJawab}. Kelola daftar hadir, penilaian harian tiap bab, jurnal mengajar, dan bimbingan siswa kelas Anda.`}

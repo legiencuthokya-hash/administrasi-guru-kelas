@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { User, SchoolSettings } from '../types';
-import { Menu, LogOut, ShieldCheck, User as UserIcon, School, Cloud, RefreshCw, Check } from 'lucide-react';
+import { User, SchoolSettings, TemaWarnaId } from '../types';
+import { Menu, LogOut, ShieldCheck, User as UserIcon, School, Cloud, RefreshCw, Check, Palette, X } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import { isFirebaseReady } from '../services/firebase';
+import { ThemePicker } from './ThemePicker';
+import { getThemeConfig } from '../services/theme';
 
 interface HeaderProps {
   currentUser: User;
   settings: SchoolSettings;
+  currentTheme: TemaWarnaId;
+  onSelectTheme: (id: TemaWarnaId) => void;
   onToggleSidebar: () => void;
   onLogout: () => void;
   onSyncCloud?: () => Promise<void>;
@@ -15,12 +19,17 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   currentUser,
   settings,
+  currentTheme,
+  onSelectTheme,
   onToggleSidebar,
   onLogout,
   onSyncCloud,
 }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [justSynced, setJustSynced] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+
+  const themeConfig = getThemeConfig(currentTheme);
 
   const handleSync = async () => {
     if (!onSyncCloud || isSyncing) return;
@@ -110,6 +119,22 @@ export const Header: React.FC<HeaderProps> = ({
         {/* PWA Install Button */}
         <PWAInstallButton />
 
+        {/* Quick Theme Picker Button */}
+        <button
+          id="btn-header-theme"
+          type="button"
+          onClick={() => setShowThemeModal(true)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition cursor-pointer shadow-2xs"
+          title="Pilihan Warna & Tema Halaman"
+        >
+          <Palette className="w-3.5 h-3.5" style={{ color: themeConfig.hex }} />
+          <span className="hidden lg:inline">Tema</span>
+          <span
+            className="w-2.5 h-2.5 rounded-full border border-white shadow-2xs shrink-0"
+            style={{ backgroundColor: themeConfig.hex }}
+          />
+        </button>
+
         {/* User profile capsule */}
         <div className="hidden sm:flex items-center gap-2 bg-slate-100/90 border border-slate-200 px-3 py-1.5 rounded-xl">
           <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs">
@@ -140,6 +165,61 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="hidden sm:inline">Keluar</span>
         </button>
       </div>
+
+      {/* Theme Picker Modal */}
+      {showThemeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div
+                  className="p-2 rounded-xl text-white shadow-xs"
+                  style={{ backgroundColor: themeConfig.hex }}
+                >
+                  <Palette className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-900 leading-tight">
+                    Pilihan Warna Halaman & Tema Aplikasi
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Atur skema warna favorit Anda. Berlaku langsung untuk akun Anda (
+                    {currentUser.nama}).
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowThemeModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                title="Tutup"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <ThemePicker
+              currentTheme={currentTheme}
+              onSelectTheme={(newId) => {
+                onSelectTheme(newId);
+              }}
+              title="Koleksi Skema Warna Resmi SD Negeri Maospati 3"
+              subtitle="Pilih salah satu dari 8 palet warna yang telah disesuaikan dengan kenyamanan visual dan keterbacaan."
+            />
+
+            <div className="pt-3 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowThemeModal(false)}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white transition shadow-sm cursor-pointer"
+                style={{ backgroundColor: themeConfig.hex }}
+              >
+                Selesai & Terapkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

@@ -1,5 +1,15 @@
 export type UserRole = 'admin' | 'guru';
 
+export type TemaWarnaId =
+  | 'blue'
+  | 'emerald'
+  | 'indigo'
+  | 'violet'
+  | 'rose'
+  | 'amber'
+  | 'teal'
+  | 'slate';
+
 export type TanggungJawab =
   | '1A'
   | '1B'
@@ -81,6 +91,7 @@ export interface User {
   nip?: string;
   tanggungJawab: TanggungJawab;
   tandaTanganUrl?: string;
+  temaWarna?: TemaWarnaId;
   updatedAt?: string;
 }
 
@@ -176,6 +187,7 @@ export interface SchoolSettings {
   lokasiTandaTangan: string; // e.g. "Maospati"
   tahunAjaranAktif: string;
   semesterAktif: '1' | '2';
+  defaultTemaWarna?: TemaWarnaId;
   firebaseConfigCustom?: {
     apiKey: string;
     authDomain: string;
