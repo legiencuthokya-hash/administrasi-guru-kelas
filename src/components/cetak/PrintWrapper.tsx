@@ -241,42 +241,9 @@ export const PrintWrapper: React.FC<PrintWrapperProps> = ({
         {/* Official Signature Section */}
         <div className="pt-4 page-break-inside-avoid text-black font-serif text-xs">
           <div className="flex justify-between items-start">
-            {/* Left: Guru Kelas / Guru Pengajar */}
+            {/* Left: Kepala Satuan Pendidikan (dibawah Mengetahui,) */}
             <div className="w-64 text-center">
               <div>Mengetahui,</div>
-              <div className="font-semibold">
-                {teacherUser?.tanggungJawab ? `Guru ${teacherUser.tanggungJawab}` : 'Guru Pengajar'}
-              </div>
-
-              {/* Signature space or image */}
-              <div className="h-20 flex items-center justify-center my-1">
-                {signatureMode === 'auto' && teacherUser?.tandaTanganUrl ? (
-                  <img
-                    src={teacherUser.tandaTanganUrl}
-                    alt="TTD Guru"
-                    className="max-h-16 max-w-36 object-contain"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="text-[10px] text-slate-300 italic no-print">
-                    (Ruang TTD Guru)
-                  </div>
-                )}
-              </div>
-
-              <div className="font-bold underline">
-                {teacherUser?.nama || '...........................................'}
-              </div>
-              <div className="text-[11px]">
-                NIP. {teacherUser?.nip || '.......................................'}
-              </div>
-            </div>
-
-            {/* Right: Kepala Satuan Pendidikan */}
-            <div className="w-64 text-center">
-              <div>
-                {settings.lokasiTandaTangan || 'Maospati'}, {dateStr}
-              </div>
               <div className="font-semibold">Kepala Satuan Pendidikan</div>
 
               {/* Signature space or image */}
@@ -300,6 +267,45 @@ export const PrintWrapper: React.FC<PrintWrapperProps> = ({
               </div>
               <div className="text-[11px]">
                 NIP. {settings.nipKepala || '.......................................'}
+              </div>
+            </div>
+
+            {/* Right: Guru Pengajar / Guru Kelas (dibawah Tempat dan Tanggal) */}
+            <div className="w-64 text-center">
+              <div>
+                {settings.lokasiTandaTangan || 'Maospati'}, {dateStr}
+              </div>
+              <div className="font-semibold">
+                {teacherUser?.tanggungJawab
+                  ? /^[1-6][AB]$/.test(teacherUser.tanggungJawab)
+                    ? `Guru Kelas ${teacherUser.tanggungJawab}`
+                    : teacherUser.tanggungJawab.startsWith('Guru')
+                    ? teacherUser.tanggungJawab
+                    : `Guru ${teacherUser.tanggungJawab}`
+                  : 'Guru Pengajar'}
+              </div>
+
+              {/* Signature space or image */}
+              <div className="h-20 flex items-center justify-center my-1">
+                {signatureMode === 'auto' && teacherUser?.tandaTanganUrl ? (
+                  <img
+                    src={teacherUser.tandaTanganUrl}
+                    alt="TTD Guru"
+                    className="max-h-16 max-w-36 object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="text-[10px] text-slate-300 italic no-print">
+                    (Ruang TTD Guru)
+                  </div>
+                )}
+              </div>
+
+              <div className="font-bold underline">
+                {teacherUser?.nama || '...........................................'}
+              </div>
+              <div className="text-[11px]">
+                NIP. {teacherUser?.nip || '.......................................'}
               </div>
             </div>
           </div>
