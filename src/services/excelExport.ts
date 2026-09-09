@@ -270,3 +270,31 @@ export function exportBimbinganToExcel(
   XLSX.utils.book_append_sheet(wb, ws, `Bimbingan Sem ${semester}`);
   downloadExcelFile(wb, `Bimbingan_Siswa_Semester_${semester}`);
 }
+
+// 6. Template Excel untuk Upload Masal Siswa
+export function exportSiswaExcelTemplate(targetKelas: string = '1A') {
+  const wb = XLSX.utils.book_new();
+  const sampleRows: any[][] = [
+    ['NISN', 'NIS', 'NAMA LENGKAP', 'JENIS KELAMIN', 'KELAS', 'AGAMA'],
+    ['0151234001', '3101', 'Ahmad Dani Saputra', 'L', targetKelas, 'Islam'],
+    ['0151234002', '3102', 'Bella Safira Ramadhani', 'P', targetKelas, 'Islam'],
+    ['0151234003', '3103', 'Citra Dewi Anjani', 'P', targetKelas, 'Islam'],
+    ['0151234004', '3104', 'Dimas Arya Pratama', 'L', targetKelas, 'Islam'],
+    ['0151234005', '3105', 'Eko Prasetyo Nugroho', 'L', targetKelas, 'Islam'],
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(sampleRows);
+  ws['!cols'] = [
+    { wch: 16 }, // NISN
+    { wch: 12 }, // NIS
+    { wch: 32 }, // NAMA LENGKAP
+    { wch: 16 }, // JENIS KELAMIN (L/P)
+    { wch: 14 }, // KELAS
+    { wch: 16 }, // AGAMA
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Data Siswa');
+  const safeKelas = targetKelas === 'Semua' ? 'semua_kelas' : targetKelas.replace(/\s+/g, '_').toLowerCase();
+  downloadExcelFile(wb, `template_upload_masal_siswa_${safeKelas}`);
+}
+

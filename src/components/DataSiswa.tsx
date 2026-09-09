@@ -1,7 +1,22 @@
 import React, { useState } from 'react';
 import { Siswa, User, DAFTAR_KELAS, DAFTAR_AGAMA } from '../types';
-import { Plus, Edit2, Trash2, Search, GraduationCap, X, Check } from 'lucide-react';
-import { isGuruMapelUmum } from '../services/storage';
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Search,
+  GraduationCap,
+  X,
+  Check,
+  Upload,
+  Download,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react';
+import { isGuruMapelUmum, getSiswaCsvTemplate } from '../services/storage';
+import { exportSiswaExcelTemplate } from '../services/excelExport';
+import { UploadMasalSiswaModal } from './UploadMasalSiswaModal';
 
 interface DataSiswaProps {
   currentUser: User;
@@ -23,15 +38,19 @@ export const DataSiswa: React.FC<DataSiswaProps> = ({
   const [selectedClass, setSelectedClass] = useState<string>(defaultClass);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Form modal state
+  // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<{ text: string; isError?: boolean } | null>(null);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     nisn: '',
     nis: '',
     nama: '',
     jenisKelamin: 'L' as 'L' | 'P',
-    kelas: canAccessAllClasses ? 'Kelas 1' : currentUser.tanggungJawab,
+    kelas: canAccessAllClasses ? '1A' : currentUser.tanggungJawab,
     agama: 'Islam',
     status: 'Aktif' as 'Aktif' | 'Pindah' | 'Lulus',
   });
@@ -54,7 +73,7 @@ export const DataSiswa: React.FC<DataSiswaProps> = ({
       nis: '',
       nama: '',
       jenisKelamin: 'L',
-      kelas: selectedClass !== 'Semua' ? selectedClass : 'Kelas 1',
+      kelas: selectedClass !== 'Semua' ? selectedClass : '1A',
       agama: 'Islam',
       status: 'Aktif',
     });
@@ -80,6 +99,47 @@ export const DataSiswa: React.FC<DataSiswaProps> = ({
       const updated = siswaList.filter((s) => s.id !== id);
       onSaveSiswa(updated);
     }
+  };
+
+  const handleDownloadTemplateExcel = () => {
+    const target = selectedClass !== 'Semua' ? selectedClass : (currentUser.role === 'admin' ? 'Kelas 1' : currentUser.tanggungJawab);
+    exportSiswaExcelTemplate(target);
+    setShowTemplateDropdown(false);
+  };
+
+  const handleDownloadTemplateCsv = () => {
+    const template = getSiswaCsvTemplate();
+    const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const target = selectedClass !== 'Semua' ? selectedClass : (currentUser.role === 'admin' ? 'Kelas 1' : currentUser.tanggungJawab);
+    link.setAttribute('download', `template_siswa_${target.replace(/\s+/g, '_').toLowerCase()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setShowTemplateDropdown(false);
+  };
+
+  const handleImportSuccess = (
+    newStudents: Siswa[],
+    mode: 'append' | 'replace',
+    targetClass: string
+  ) => {
+    let updated: Siswa[] = [];
+    if (mode === 'replace') {
+      // Find classes affected by imported students
+      const affectedClasses = new Set(newStudents.map((s) => s.kelas));
+      const keptStudents = siswaList.filter((s) => !affectedClasses.has(s.kelas));
+      updated = [...keptStudents, ...newStudents];
+    } else {
+      updated = [...siswaList, ...newStudents];
+    }
+    onSaveSiswa(updated);
+    setAlertMessage({
+      text: `Berhasil mengimpor ${newStudents.length} data peserta didik secara masal! Data tersimpan & otomatis tersinkronisasi ke Cloud.`,
+    });
+    setTimeout(() => setAlertMessage(null), 6000);
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -124,20 +184,103 @@ export const DataSiswa: React.FC<DataSiswaProps> = ({
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             {canAccessAllClasses
-              ? 'Kelola data seluruh siswa kelas 1 s/d 6'
+              ? 'Kelola data seluruh siswa kelas 1A s/d 6B'
               : `Kelola data siswa di ${currentUser.tanggungJawab}`}
           </p>
         </div>
 
-        <button
-          id="btn-tambah-siswa"
-          onClick={handleOpenAdd}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-sm transition"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Tambah Siswa</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {/* Template Download Dropdown */}
+          <div className="relative">
+            <button
+              id="btn-unduh-template-siswa"
+              type="button"
+              onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
+              className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 text-xs font-semibold px-3 py-2.5 rounded-xl transition"
+              title="Unduh format template Excel atau CSV"
+            >
+              <Download className="w-4 h-4 text-slate-500" />
+              <span>Template</span>
+            </button>
+
+            {showTemplateDropdown && (
+              <div className="absolute right-0 mt-1.5 w-52 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-40 space-y-1 text-xs">
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplateExcel}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition text-left"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <div>
+                    <div className="font-semibold">Template Excel (.xlsx)</div>
+                    <div className="text-[10px] text-slate-400">Direkomendasikan</div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplateCsv}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-blue-50 hover:text-blue-800 transition text-left"
+                >
+                  <Download className="w-4 h-4 text-blue-600" />
+                  <div>
+                    <div className="font-semibold">Template CSV (.csv)</div>
+                    <div className="text-[10px] text-slate-400">Format teks koma</div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Bulk Upload Button */}
+          <button
+            id="btn-upload-masal-siswa"
+            type="button"
+            onClick={() => setIsUploadModalOpen(true)}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl shadow-sm transition"
+            title="Unggah banyak siswa sekaligus dari file Excel atau CSV"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Upload Masal</span>
+          </button>
+
+          {/* Single Add Button */}
+          <button
+            id="btn-tambah-siswa"
+            type="button"
+            onClick={handleOpenAdd}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold px-3.5 py-2.5 rounded-xl shadow-sm transition"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tambah Siswa</span>
+          </button>
+        </div>
       </div>
+
+      {/* Success / Alert Banner */}
+      {alertMessage && (
+        <div
+          className={`p-3.5 rounded-xl text-xs flex items-center justify-between border ${
+            alertMessage.isError
+              ? 'bg-rose-50 border-rose-200 text-rose-800'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-900 shadow-2xs'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {alertMessage.isError ? (
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+            )}
+            <span className="font-medium">{alertMessage.text}</span>
+          </div>
+          <button
+            onClick={() => setAlertMessage(null)}
+            className="text-slate-400 hover:text-slate-600 p-1"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Filter & Search Bar */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -149,7 +292,7 @@ export const DataSiswa: React.FC<DataSiswaProps> = ({
               onChange={(e) => setSelectedClass(e.target.value)}
               className="w-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="Semua">Semua Kelas (1 - 6)</option>
+              <option value="Semua">Semua Kelas (1A - 6B)</option>
               {DAFTAR_KELAS.map((k) => (
                 <option key={k} value={k}>
                   {k}
@@ -404,6 +547,16 @@ export const DataSiswa: React.FC<DataSiswaProps> = ({
           </div>
         </div>
       )}
+
+      {/* Upload Masal Siswa Modal */}
+      <UploadMasalSiswaModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        currentUser={currentUser}
+        currentClass={selectedClass}
+        existingStudents={siswaList}
+        onImportSuccess={handleImportSuccess}
+      />
     </div>
   );
 };

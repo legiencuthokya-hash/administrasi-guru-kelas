@@ -24,7 +24,7 @@ export const CetakAbsenBulanan: React.FC<CetakAbsenBulananProps> = ({
   const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
   const [selectedClass, setSelectedClass] = useState<string>(
-    canAccessAllClasses ? 'Kelas 1' : currentUser.tanggungJawab
+    canAccessAllClasses ? '1A' : currentUser.tanggungJawab
   );
 
   const [yearStr, monthStr] = selectedMonth.split('-');

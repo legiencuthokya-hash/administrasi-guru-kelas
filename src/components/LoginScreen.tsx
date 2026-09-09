@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { getStoredUsers, setCurrentUser } from '../services/storage';
+import { signInWithGoogle } from '../services/firebase';
 import { Lock, ShieldCheck, UserCheck, AlertCircle, GraduationCap, School } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 
@@ -62,6 +63,27 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       }
       setCurrentUser(guru);
       onLoginSuccess(guru);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setErrorMessage('');
+      const fbUser = await signInWithGoogle();
+      if (fbUser) {
+        // Find existing admin or link with admin role
+        const adminUser = users.find((u) => u.role === 'admin') || {
+          id: 'user-admin',
+          username: fbUser.email?.split('@')[0] || 'admin',
+          role: 'admin' as const,
+          nama: fbUser.displayName || 'Administrator Sekolah (Google)',
+          tanggungJawab: 'Administrator' as const,
+        };
+        setCurrentUser(adminUser);
+        onLoginSuccess(adminUser);
+      }
+    } catch (err: any) {
+      setErrorMessage('Login Google dibatalkan atau terjadi kendala jaringan.');
     }
   };
 
@@ -209,7 +231,43 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           </button>
         </form>
 
-        <div className="mt-6 pt-4 border-t border-slate-800 text-center">
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-800" />
+          </div>
+          <div className="relative flex justify-center text-[11px]">
+            <span className="bg-slate-900 px-2 text-slate-400 font-medium">atau masuk cloud</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          id="btn-google-login"
+          onClick={handleGoogleLogin}
+          className="w-full py-2.5 px-4 bg-slate-800/80 hover:bg-slate-800 text-slate-200 rounded-xl text-xs font-semibold border border-slate-700/80 transition flex items-center justify-center gap-2.5 cursor-pointer shadow-xs"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24">
+            <path
+              fill="#4285F4"
+              d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3.03h3.88c2.27-2.09 3.665-5.17 3.665-9.12z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.03c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.13C3.25 21.37 7.34 24 12 24z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M5.28 14.29c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29V6.57H1.26C.46 8.17 0 9.97 0 12s.46 3.83 1.26 5.43l4.02-3.14z"
+            />
+            <path
+              fill="#EA4335"
+              d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.25 2.63 1.26 6.57l4.02 3.14c.95-2.83 3.6-4.96 6.72-4.96z"
+            />
+          </svg>
+          <span>Masuk dengan Google (Cloud Admin)</span>
+        </button>
+
+        <div className="mt-5 pt-4 border-t border-slate-800 text-center">
           <p className="text-[11px] text-slate-400">
             Aplikasi Administrasi Guru Terpadu — SDN Maospati 3
           </p>

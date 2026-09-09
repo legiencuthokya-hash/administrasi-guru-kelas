@@ -32,7 +32,7 @@ export const BimbinganComponent: React.FC<BimbinganProps> = ({
     tanggal: new Date().toISOString().split('T')[0],
     siswaId: '',
     siswaNama: '',
-    kelas: canAccessAllClasses ? 'Kelas 1' : currentUser.tanggungJawab,
+    kelas: canAccessAllClasses ? '1A' : currentUser.tanggungJawab,
     permasalahan: '',
     penanganan: '',
     hasil: '',
@@ -52,7 +52,7 @@ export const BimbinganComponent: React.FC<BimbinganProps> = ({
 
   const handleOpenAdd = () => {
     setEditingId(null);
-    const targetClass = selectedClass !== 'Semua' ? selectedClass : 'Kelas 1';
+    const targetClass = selectedClass !== 'Semua' ? selectedClass : '1A';
     const studentsInClass = siswaList.filter(
       (s) => s.kelas === targetClass && s.status === 'Aktif'
     );

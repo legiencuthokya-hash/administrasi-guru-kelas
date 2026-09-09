@@ -1,6 +1,7 @@
 import {
   Absensi,
   BimbinganSiswa,
+  JadwalSlot,
   JurnalMengajar,
   Nilai,
   SchoolSettings,
@@ -8,8 +9,8 @@ import {
   TanggungJawab,
   User,
 } from '../types';
-import { INITIAL_SCHOOL_SETTINGS, INITIAL_SISWA, INITIAL_USERS } from './initialData';
-import { db, isFirebaseReady, handleFirestoreError, OperationType } from './firebase';
+import { INITIAL_SCHOOL_SETTINGS, INITIAL_SISWA, INITIAL_USERS, INITIAL_JADWAL } from './initialData';
+import { db, auth, isFirebaseReady, handleFirestoreError, OperationType } from './firebase';
 import {
   doc,
   setDoc,
@@ -29,6 +30,7 @@ const STORAGE_KEYS = {
   NILAI: 'sdn3_nilai_v1',
   JURNAL: 'sdn3_jurnal_v1',
   BIMBINGAN: 'sdn3_bimbingan_v1',
+  JADWAL: 'sdn3_jadwal_v1',
   SETTINGS: 'sdn3_settings_v1',
   CURRENT_USER: 'sdn3_current_user_v1',
 };
@@ -61,7 +63,7 @@ export function getStoredSettings(): SchoolSettings {
 
 export async function saveStoredSettings(settings: SchoolSettings): Promise<void> {
   localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
-  if (isFirebaseReady && db) {
+  if (isFirebaseReady && db && auth.currentUser) {
     try {
       await setDoc(doc(db, 'pengaturan', 'config'), settings);
     } catch (err) {
@@ -70,12 +72,56 @@ export async function saveStoredSettings(settings: SchoolSettings): Promise<void
   }
 }
 
+// Migration helper: seamlessly migrate old 'Kelas 1'...'Kelas 6' to '1A'...'6A'
+export function migrateKelasName(k: string): string {
+  if (!k) return '1A';
+  const trimmed = k.trim();
+  const mapOldToNew: Record<string, string> = {
+    'Kelas 1': '1A',
+    'Kelas 2': '2A',
+    'Kelas 3': '3A',
+    'Kelas 4': '4A',
+    'Kelas 5': '5A',
+    'Kelas 6': '6A',
+  };
+  if (mapOldToNew[trimmed]) return mapOldToNew[trimmed];
+  const m = trimmed.match(/^Kelas\s*([1-6][a-bA-B]?)$/i);
+  if (m) return m[1].toUpperCase();
+  return trimmed;
+}
+
 // 2. Users (Guru & Admin)
 export function getStoredUsers(): User[] {
   const data = localStorage.getItem(STORAGE_KEYS.USERS);
   if (data) {
     try {
-      return JSON.parse(data);
+      const parsed: User[] = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        let changed = false;
+        // Merge missing initial teachers (e.g. 1B, 2B, 3B, 4B, 5B, 6B) if not present
+        const currentTanggungJawab = new Set(parsed.map((u) => u.tanggungJawab));
+        const updatedList: User[] = parsed.map((u) => {
+          const migratedTj = migrateKelasName(u.tanggungJawab) as TanggungJawab;
+          if (migratedTj !== u.tanggungJawab) {
+            changed = true;
+            return { ...u, tanggungJawab: migratedTj };
+          }
+          return u;
+        });
+
+        // Add any missing parallel class teachers from INITIAL_USERS
+        for (const initUser of INITIAL_USERS) {
+          if (!updatedList.some((u) => u.id === initUser.id || u.username === initUser.username)) {
+            updatedList.push(initUser);
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(updatedList));
+        }
+        return updatedList;
+      }
     } catch (e) {
       console.error(e);
     }
@@ -86,7 +132,7 @@ export function getStoredUsers(): User[] {
 
 export async function saveStoredUsers(users: User[]): Promise<void> {
   localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-  if (isFirebaseReady && db) {
+  if (isFirebaseReady && db && auth.currentUser) {
     try {
       for (const u of users) {
         await setDoc(doc(db, 'users', u.id), u);
@@ -102,7 +148,22 @@ export function getStoredSiswa(): Siswa[] {
   const data = localStorage.getItem(STORAGE_KEYS.SISWA);
   if (data) {
     try {
-      return JSON.parse(data);
+      const parsed: Siswa[] = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        let changed = false;
+        const updatedList = parsed.map((s) => {
+          const migrated = migrateKelasName(s.kelas);
+          if (migrated !== s.kelas) {
+            changed = true;
+            return { ...s, kelas: migrated };
+          }
+          return s;
+        });
+        if (changed) {
+          localStorage.setItem(STORAGE_KEYS.SISWA, JSON.stringify(updatedList));
+        }
+        return updatedList;
+      }
     } catch (e) {
       console.error(e);
     }
@@ -113,7 +174,7 @@ export function getStoredSiswa(): Siswa[] {
 
 export async function saveStoredSiswa(siswaList: Siswa[]): Promise<void> {
   localStorage.setItem(STORAGE_KEYS.SISWA, JSON.stringify(siswaList));
-  if (isFirebaseReady && db) {
+  if (isFirebaseReady && db && auth.currentUser) {
     try {
       for (const s of siswaList) {
         await setDoc(doc(db, 'siswa', s.id), s);
@@ -153,7 +214,7 @@ export function getStoredAbsensi(): Absensi[] {
 
 export async function saveStoredAbsensi(absensiList: Absensi[]): Promise<void> {
   localStorage.setItem(STORAGE_KEYS.ABSENSI, JSON.stringify(absensiList));
-  if (isFirebaseReady && db) {
+  if (isFirebaseReady && db && auth.currentUser) {
     try {
       for (const a of absensiList) {
         await setDoc(doc(db, 'absensi', a.id), a);
@@ -179,7 +240,7 @@ export function getStoredNilai(): Nilai[] {
 
 export async function saveStoredNilai(nilaiList: Nilai[]): Promise<void> {
   localStorage.setItem(STORAGE_KEYS.NILAI, JSON.stringify(nilaiList));
-  if (isFirebaseReady && db) {
+  if (isFirebaseReady && db && auth.currentUser) {
     try {
       for (const n of nilaiList) {
         await setDoc(doc(db, 'nilai', n.id), n);
@@ -205,7 +266,7 @@ export function getStoredJurnal(): JurnalMengajar[] {
 
 export async function saveStoredJurnal(jurnalList: JurnalMengajar[]): Promise<void> {
   localStorage.setItem(STORAGE_KEYS.JURNAL, JSON.stringify(jurnalList));
-  if (isFirebaseReady && db) {
+  if (isFirebaseReady && db && auth.currentUser) {
     try {
       for (const j of jurnalList) {
         await setDoc(doc(db, 'jurnal', j.id), j);
@@ -231,7 +292,7 @@ export function getStoredBimbingan(): BimbinganSiswa[] {
 
 export async function saveStoredBimbingan(bimbinganList: BimbinganSiswa[]): Promise<void> {
   localStorage.setItem(STORAGE_KEYS.BIMBINGAN, JSON.stringify(bimbinganList));
-  if (isFirebaseReady && db) {
+  if (isFirebaseReady && db && auth.currentUser) {
     try {
       for (const b of bimbinganList) {
         await setDoc(doc(db, 'bimbingan', b.id), b);
@@ -242,12 +303,50 @@ export async function saveStoredBimbingan(bimbinganList: BimbinganSiswa[]): Prom
   }
 }
 
+// 7. Jadwal Pelajaran (Senin - Jumat, 10 JP)
+export function getStoredJadwal(): JadwalSlot[] {
+  const data = localStorage.getItem(STORAGE_KEYS.JADWAL);
+  if (data) {
+    try {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  localStorage.setItem(STORAGE_KEYS.JADWAL, JSON.stringify(INITIAL_JADWAL));
+  return INITIAL_JADWAL;
+}
+
+export async function saveStoredJadwal(jadwalList: JadwalSlot[]): Promise<void> {
+  localStorage.setItem(STORAGE_KEYS.JADWAL, JSON.stringify(jadwalList));
+  if (isFirebaseReady && db && auth.currentUser) {
+    try {
+      for (const j of jadwalList) {
+        await setDoc(doc(db, 'jadwal', j.id), j);
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'jadwal');
+    }
+  }
+}
+
 // Current Session
 export function getCurrentUser(): User | null {
   const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
   if (data) {
     try {
-      return JSON.parse(data);
+      const parsed: User = JSON.parse(data);
+      if (parsed && parsed.tanggungJawab) {
+        const migrated = migrateKelasName(parsed.tanggungJawab) as TanggungJawab;
+        if (migrated !== parsed.tanggungJawab) {
+          parsed.tanggungJawab = migrated;
+          localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(parsed));
+        }
+      }
+      return parsed;
     } catch (e) {
       console.error(e);
     }
@@ -312,12 +411,12 @@ export async function deleteAllStudents(): Promise<number> {
 
 // CSV Template for Siswa
 export function getSiswaCsvTemplate(): string {
-  return 'NISN,NIS,NAMA,JENIS_KELAMIN(L/P),KELAS(Kelas 1-6),AGAMA(Islam/Kristen/Katolik/Hindu/Budha/Konghucu)\n0151234010,3110,Ahmad Dani Saputra,L,Kelas 1,Islam\n0151234011,3111,Bella Safira,P,Kelas 1,Islam\n';
+  return 'NISN,NIS,NAMA,JENIS_KELAMIN(L/P),KELAS(1A/1B/2A/2B/3A/3B/4A/4B/5A/5B/6A/6B),AGAMA(Islam/Kristen/Katolik/Hindu/Budha/Konghucu)\n0151234010,3110,Ahmad Dani Saputra,L,1A,Islam\n0151234011,3111,Bella Safira,P,1A,Islam\n';
 }
 
 // CSV Template for Guru
 export function getGuruCsvTemplate(): string {
-  return 'USERNAME,NAMA,NIP,TANGGUNG_JAWAB\nguru_contoh1,Siti Aminah S.Pd,198001012005012001,Kelas 1\nguru_contoh2,Rahmat Hidayat S.Pd.I,198505052010011002,Pendidikan Agama Islam\n';
+  return 'USERNAME,NAMA,NIP,TANGGUNG_JAWAB\nguru_contoh1,Siti Aminah S.Pd,198001012005012001,1A\nguru_contoh2,Rahmat Hidayat S.Pd.I,198505052010011002,Pendidikan Agama Islam\n';
 }
 
 // Parse CSV text to rows
@@ -338,6 +437,12 @@ export async function syncFromFirestore(user: User): Promise<{
 }> {
   if (!db) {
     return { success: false, message: 'Koneksi Firestore belum siap.' };
+  }
+  if (!auth.currentUser) {
+    return {
+      success: false,
+      message: 'Silakan hubungkan akun Google / Firebase terlebih dahulu untuk menyinkronkan data cloud.',
+    };
   }
 
   try {
@@ -421,6 +526,17 @@ export async function syncFromFirestore(user: User): Promise<{
         }
       } catch (e) {
         handleFirestoreError(e, OperationType.LIST, 'bimbingan');
+      }
+
+      try {
+        const jadwalSnap = await getDocs(collection(db, 'jadwal'));
+        if (!jadwalSnap.empty) {
+          const list = jadwalSnap.docs.map((d) => d.data() as JadwalSlot);
+          localStorage.setItem(STORAGE_KEYS.JADWAL, JSON.stringify(list));
+          counts.jadwal = list.length;
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.LIST, 'jadwal');
       }
 
       return {
@@ -517,6 +633,18 @@ export async function syncFromFirestore(user: User): Promise<{
         handleFirestoreError(e, OperationType.LIST, 'bimbingan');
       }
 
+      // Jadwal (pull updated schedule for school / class)
+      try {
+        const snapJadwal = await getDocs(collection(db, 'jadwal'));
+        if (!snapJadwal.empty) {
+          const cloudJadwal = snapJadwal.docs.map((d) => d.data() as JadwalSlot);
+          localStorage.setItem(STORAGE_KEYS.JADWAL, JSON.stringify(cloudJadwal));
+          counts.jadwal = cloudJadwal.length;
+        }
+      } catch (e) {
+        handleFirestoreError(e, OperationType.LIST, 'jadwal');
+      }
+
       return {
         success: true,
         message: `Berhasil menyinkronkan data tugas untuk ${user.tanggungJawab} dari Cloud Firestore.`,
@@ -540,6 +668,13 @@ export async function backupAllToFirestore(): Promise<{
 }> {
   if (!db) {
     return { success: false, message: 'Koneksi Firestore belum siap.', totalRecords: 0 };
+  }
+  if (!auth.currentUser) {
+    return {
+      success: false,
+      message: 'Silakan hubungkan akun Google / Firebase terlebih dahulu untuk mencadangkan data ke cloud.',
+      totalRecords: 0,
+    };
   }
 
   try {
@@ -589,6 +724,13 @@ export async function backupAllToFirestore(): Promise<{
     const bimbingan = getStoredBimbingan();
     for (const b of bimbingan) {
       await setDoc(doc(db, 'bimbingan', b.id), b);
+      total += 1;
+    }
+
+    // 8. Jadwal Pelajaran
+    const jadwal = getStoredJadwal();
+    for (const j of jadwal) {
+      await setDoc(doc(db, 'jadwal', j.id), j);
       total += 1;
     }
 

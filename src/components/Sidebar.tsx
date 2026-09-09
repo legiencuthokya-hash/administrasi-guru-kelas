@@ -16,15 +16,18 @@ import {
   Calendar,
   PenTool,
   CheckCircle2,
+  Clock,
 } from 'lucide-react';
 
 export type ActiveTab =
   | 'dashboard'
+  | 'jadwal'
   | 'siswa'
   | 'absensi'
   | 'nilai'
   | 'jurnal'
   | 'bimbingan'
+  | 'cetak-jadwal'
   | 'cetak-absen-bulanan'
   | 'cetak-rekap-semester'
   | 'cetak-nilai'
@@ -124,6 +127,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
 
             <button
+              type="button"
+              id="nav-jadwal"
+              onClick={() => handleNavClick('jadwal')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition cursor-pointer ${
+                activeTab === 'jadwal'
+                  ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/30'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+              }`}
+            >
+              <Clock className="w-4 h-4 text-emerald-400" />
+              <span>Jadwal Pelajaran</span>
+            </button>
+
+            <button
               id="nav-siswa"
               onClick={() => handleNavClick('siswa')}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${
@@ -195,6 +212,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <Printer className="w-3 h-3 text-slate-400" />
               <span>Menu Cetak Dokumen</span>
             </div>
+
+            <button
+              id="nav-cetak-jadwal"
+              onClick={() => handleNavClick('cetak-jadwal')}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition text-left ${
+                activeTab === 'cetak-jadwal'
+                  ? 'bg-blue-600/30 text-blue-300 font-semibold border border-blue-500/30'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Cetak Jadwal Pelajaran</span>
+            </button>
 
             <button
               id="nav-cetak-absen-bulanan"

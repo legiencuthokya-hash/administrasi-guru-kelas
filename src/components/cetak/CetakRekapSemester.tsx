@@ -23,7 +23,7 @@ export const CetakRekapSemester: React.FC<CetakRekapSemesterProps> = ({
 
   const [selectedSemester, setSelectedSemester] = useState<'1' | '2'>('2');
   const [selectedClass, setSelectedClass] = useState<string>(
-    canAccessAllClasses ? 'Kelas 1' : currentUser.tanggungJawab
+    canAccessAllClasses ? '1A' : currentUser.tanggungJawab
   );
 
   const classStudents = siswaList.filter(

@@ -30,7 +30,7 @@ export const JurnalComponent: React.FC<JurnalProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     tanggal: new Date().toISOString().split('T')[0],
-    kelas: canAccessAllClasses ? 'Kelas 1' : currentUser.tanggungJawab,
+    kelas: canAccessAllClasses ? '1A' : currentUser.tanggungJawab,
     mapel: isSubjectTeacher ? currentUser.tanggungJawab : 'Bahasa Indonesia',
     babMateri: '',
     kegiatan: '',
@@ -49,7 +49,7 @@ export const JurnalComponent: React.FC<JurnalProps> = ({
     setEditingId(null);
     setFormData({
       tanggal: new Date().toISOString().split('T')[0],
-      kelas: filterClass !== 'Semua' ? filterClass : 'Kelas 1',
+      kelas: filterClass !== 'Semua' ? filterClass : '1A',
       mapel: isSubjectTeacher ? currentUser.tanggungJawab : 'Bahasa Indonesia',
       babMateri: '',
       kegiatan: '',

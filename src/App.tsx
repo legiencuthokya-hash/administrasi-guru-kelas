@@ -7,6 +7,7 @@ import {
   Nilai,
   JurnalMengajar,
   BimbinganSiswa,
+  JadwalSlot,
 } from './types';
 import {
   getCurrentUser,
@@ -25,9 +26,13 @@ import {
   saveStoredJurnal,
   getStoredBimbingan,
   saveStoredBimbingan,
+  getStoredJadwal,
+  saveStoredJadwal,
   getFilteredSiswa,
+  isGuruMapelUmum,
   syncFromFirestore,
 } from './services/storage';
+import { auth, signInWithGoogle } from './services/firebase';
 import { LoginScreen } from './components/LoginScreen';
 import { Header } from './components/Header';
 import { Sidebar, ActiveTab } from './components/Sidebar';
@@ -37,6 +42,8 @@ import { AbsensiComponent } from './components/Absensi';
 import { NilaiComponent } from './components/Nilai';
 import { JurnalComponent } from './components/Jurnal';
 import { BimbinganComponent } from './components/Bimbingan';
+import { JadwalComponent } from './components/Jadwal';
+import { CetakJadwal } from './components/cetak/CetakJadwal';
 import { CetakAbsenBulanan } from './components/cetak/CetakAbsenBulanan';
 import { CetakRekapSemester } from './components/cetak/CetakRekapSemester';
 import { CetakNilai } from './components/cetak/CetakNilai';
@@ -57,6 +64,7 @@ export default function App() {
   const [nilaiList, setNilaiList] = useState<Nilai[]>(getStoredNilai());
   const [jurnalList, setJurnalList] = useState<JurnalMengajar[]>(getStoredJurnal());
   const [bimbinganList, setBimbinganList] = useState<BimbinganSiswa[]>(getStoredBimbingan());
+  const [jadwalList, setJadwalList] = useState<JadwalSlot[]>(getStoredJadwal());
 
   // UI state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -86,8 +94,20 @@ export default function App() {
   };
 
   const handleSaveSiswa = async (updated: Siswa[]) => {
-    setSiswaList(updated);
-    await saveStoredSiswa(updated);
+    let fullList = updated;
+    if (
+      currentUser &&
+      currentUser.role !== 'admin' &&
+      !isGuruMapelUmum(currentUser.tanggungJawab)
+    ) {
+      // Keep students from all other classes that this teacher doesn't manage
+      const otherClassStudents = siswaList.filter(
+        (s) => s.kelas !== currentUser.tanggungJawab
+      );
+      fullList = [...otherClassStudents, ...updated];
+    }
+    setSiswaList(fullList);
+    await saveStoredSiswa(fullList);
   };
 
   const handleSaveAbsensi = async (updated: Absensi[]) => {
@@ -110,15 +130,28 @@ export default function App() {
     await saveStoredBimbingan(updated);
   };
 
+  const handleSaveJadwal = async (updated: JadwalSlot[]) => {
+    setJadwalList(updated);
+    await saveStoredJadwal(updated);
+  };
+
   const handleRefreshAllData = () => {
     setAbsensiList(getStoredAbsensi());
     setNilaiList(getStoredNilai());
     setJurnalList(getStoredJurnal());
     setBimbinganList(getStoredBimbingan());
+    setJadwalList(getStoredJadwal());
   };
 
   const handleSyncCloud = async () => {
     if (!currentUser) return;
+    if (!auth.currentUser) {
+      try {
+        await signInWithGoogle();
+      } catch (e) {
+        console.warn('Google sign-in cancelled or failed:', e);
+      }
+    }
     await syncFromFirestore(currentUser);
     setSettings(getStoredSettings());
     setUsers(getStoredUsers());
@@ -127,6 +160,7 @@ export default function App() {
     setNilaiList(getStoredNilai());
     setJurnalList(getStoredJurnal());
     setBimbinganList(getStoredBimbingan());
+    setJadwalList(getStoredJadwal());
   };
 
   // If not logged in, render fullscreen login screen
@@ -174,6 +208,16 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'jadwal' && (
+            <JadwalComponent
+              currentUser={currentUser}
+              users={users}
+              jadwalList={jadwalList}
+              onSaveJadwal={handleSaveJadwal}
+              onNavigateToPrint={() => setActiveTab('cetak-jadwal')}
+            />
+          )}
+
           {activeTab === 'siswa' && (
             <DataSiswa
               currentUser={currentUser}
@@ -218,6 +262,15 @@ export default function App() {
           )}
 
           {/* Cetak Sub-menus */}
+          {activeTab === 'cetak-jadwal' && (
+            <CetakJadwal
+              currentUser={currentUser}
+              settings={settings}
+              users={users}
+              jadwalList={jadwalList}
+            />
+          )}
+
           {activeTab === 'cetak-absen-bulanan' && (
             <CetakAbsenBulanan
               currentUser={currentUser}

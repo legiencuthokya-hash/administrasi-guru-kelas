@@ -16,6 +16,7 @@ import {
   getSiswaCsvTemplate,
   parseCSV,
 } from '../../services/storage';
+import { exportSiswaExcelTemplate } from '../../services/excelExport';
 
 interface AdminSiswaProps {
   siswaList: Siswa[];
@@ -93,7 +94,8 @@ export const AdminSiswa: React.FC<AdminSiswaProps> = ({
       const nis = r[1] || '';
       const nama = r[2] || 'Nama Siswa';
       const jenisKelamin = r[3]?.trim().toUpperCase() === 'P' ? 'P' : 'L';
-      const kelas = r[4] || 'Kelas 1';
+      const rawKelas = r[4] || '1A';
+      const kelas = rawKelas.replace(/^kelas\s*/i, '').trim().toUpperCase() || '1A';
       const agama = r[5] || 'Islam';
 
       newStudents.push({
@@ -136,6 +138,15 @@ export const AdminSiswa: React.FC<AdminSiswaProps> = ({
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <button
+            onClick={() => exportSiswaExcelTemplate(selectedClass !== 'Semua' ? selectedClass : 'Kelas 1')}
+            className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold px-3 py-2 rounded-xl transition"
+            title="Unduh Format Excel (.xlsx) Siap Isi"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <span>Template Excel</span>
+          </button>
+
+          <button
             onClick={handleDownloadTemplate}
             className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-xl transition"
             title="Unduh Format CSV Siswa"
@@ -155,7 +166,7 @@ export const AdminSiswa: React.FC<AdminSiswaProps> = ({
       </div>
 
       {/* Class distribution capsules */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-6 xl:grid-cols-12 gap-2 text-xs">
         {DAFTAR_KELAS.map((k) => {
           const count = siswaList.filter((s) => s.kelas === k).length;
           return (
@@ -183,7 +194,7 @@ export const AdminSiswa: React.FC<AdminSiswaProps> = ({
             onChange={(e) => setSelectedClass(e.target.value)}
             className="w-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
-            <option value="Semua">Semua Kelas (1 - 6)</option>
+            <option value="Semua">Semua Kelas (1A - 6B)</option>
             {DAFTAR_KELAS.map((k) => (
               <option key={k} value={k}>
                 {k}
@@ -308,7 +319,7 @@ export const AdminSiswa: React.FC<AdminSiswaProps> = ({
             <p className="text-slate-600 mb-3 leading-relaxed">
               Salin dan tempel data CSV siswa di bawah ini dengan urutan kolom:
               <code className="block bg-slate-100 p-2 rounded-lg font-mono text-[11px] text-slate-800 mt-1 border border-slate-200">
-                NISN,NIS,NAMA,JENIS_KELAMIN(L/P),KELAS(Kelas 1-6),AGAMA
+                NISN,NIS,NAMA,JENIS_KELAMIN(L/P),KELAS(1A-6B),AGAMA
               </code>
             </p>
 
@@ -316,7 +327,7 @@ export const AdminSiswa: React.FC<AdminSiswaProps> = ({
               rows={6}
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
-              placeholder="Contoh:&#10;0151234010,3110,Ahmad Dani Saputra,L,Kelas 1,Islam&#10;0151234011,3111,Bella Safira,P,Kelas 1,Islam"
+              placeholder="Contoh:&#10;0151234010,3110,Ahmad Dani Saputra,L,1A,Islam&#10;0151234011,3111,Bella Safira,P,1A,Islam"
               className="w-full border border-slate-300 rounded-xl p-3 text-slate-900 font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-4"
             />
 

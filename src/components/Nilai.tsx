@@ -40,7 +40,7 @@ export const NilaiComponent: React.FC<NilaiProps> = ({
 
   // Selected filters
   const [selectedClass, setSelectedClass] = useState<string>(
-    canAccessAllClasses ? 'Kelas 1' : currentUser.tanggungJawab
+    canAccessAllClasses ? '1A' : currentUser.tanggungJawab
   );
 
   const initialMapel = isSubjectTeacher

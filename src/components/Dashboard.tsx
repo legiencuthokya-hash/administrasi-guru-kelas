@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   AlertCircle,
   FileSpreadsheet,
+  Clock,
 } from 'lucide-react';
 import { isFirebaseReady } from '../services/firebase';
 
@@ -178,7 +179,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <Calendar className="w-4 h-4 text-blue-600" />
           <span>Akses Cepat Menu Administrasi</span>
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+          <button
+            id="dash-quick-jadwal"
+            onClick={() => onNavigate('jadwal')}
+            className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/50 transition text-center group cursor-pointer"
+          >
+            <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-700 mb-2 group-hover:scale-110 transition-transform">
+              <Clock className="w-5 h-5" />
+            </div>
+            <span className="text-xs font-bold text-slate-800">Jadwal</span>
+            <span className="text-[10px] text-slate-500">10 JP Pelajaran</span>
+          </button>
+
           <button
             onClick={() => onNavigate('absensi')}
             className="flex flex-col items-center justify-center p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 transition text-center group"

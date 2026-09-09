@@ -23,7 +23,10 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (
         (hasUserDoc() && currentUserDoc().role == 'admin') ||
-        (request.auth.token.email != null && request.auth.token.email == 'admin@sdnmaospati3.sch.id')
+        (request.auth.token.email != null && (
+          request.auth.token.email == 'legi.encut.hokya@gmail.com' ||
+          request.auth.token.email == 'admin@sdnmaospati3.sch.id'
+        ))
       );
     }
 
@@ -53,7 +56,9 @@ service cloud.firestore {
     // Users Collection
     match /users/{userId} {
       allow read: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
-      allow write: if isAdmin() || (request.auth.uid == userId && request.resource.data.role == resource.data.role);
+      allow create: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
+      allow update: if isSignedIn() && (isAdmin() || (request.auth.uid == userId && request.resource.data.role == resource.data.role));
+      allow delete: if isAdmin();
     }
 
     // Siswa Collection
@@ -166,6 +171,12 @@ service cloud.firestore {
     match /pengaturan/{docId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
+    }
+
+    // Jadwal Pelajaran (Senin - Jumat, 10 JP)
+    match /jadwal/{jadwalId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
     }
   }
 }

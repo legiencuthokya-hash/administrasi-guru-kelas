@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SchoolSettings } from '../../types';
 import {
   Settings,
@@ -14,6 +14,8 @@ import {
   UploadCloud,
   CheckCircle2,
   AlertCircle,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
 import {
   isFirebaseReady,
@@ -27,6 +29,7 @@ import {
   getCurrentUser,
 } from '../../services/storage';
 import firebaseConfig from '../../../firebase-applet-config.json';
+import { User as FirebaseUser } from 'firebase/auth';
 
 interface AdminPengaturanProps {
   settings: SchoolSettings;
@@ -39,6 +42,14 @@ export const AdminPengaturan: React.FC<AdminPengaturanProps> = ({
 }) => {
   const [formData, setFormData] = useState<SchoolSettings>({ ...settings });
   const [isSaved, setIsSaved] = useState(false);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(auth.currentUser);
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((u) => {
+      setFirebaseUser(u);
+    });
+    return () => unsub();
+  }, []);
 
   // Cloud sync states
   const [showFirebaseModal, setShowFirebaseModal] = useState(false);
@@ -57,6 +68,14 @@ export const AdminPengaturan: React.FC<AdminPengaturanProps> = ({
     setIsBackingUp(true);
     setSyncStatusMsg(null);
     try {
+      if (!auth.currentUser) {
+        const u = await signInWithGoogle();
+        if (!u) {
+          setSyncStatusMsg({ text: 'Login Google dibatalkan / diperlukan untuk mencadangkan ke cloud.', isError: true });
+          setIsBackingUp(false);
+          return;
+        }
+      }
       const res = await backupAllToFirestore();
       setSyncStatusMsg({ text: res.message, isError: !res.success });
     } catch (e: any) {
@@ -72,6 +91,14 @@ export const AdminPengaturan: React.FC<AdminPengaturanProps> = ({
     setIsSyncing(true);
     setSyncStatusMsg(null);
     try {
+      if (!auth.currentUser) {
+        const u = await signInWithGoogle();
+        if (!u) {
+          setSyncStatusMsg({ text: 'Login Google dibatalkan / diperlukan untuk sinkronisasi dari cloud.', isError: true });
+          setIsSyncing(false);
+          return;
+        }
+      }
       const res = await syncFromFirestore(cur);
       setSyncStatusMsg({ text: res.message, isError: !res.success });
       if (res.success) {
@@ -121,6 +148,33 @@ export const AdminPengaturan: React.FC<AdminPengaturanProps> = ({
           <p className="text-xs text-blue-200/90 leading-relaxed max-w-2xl">
             Sistem menggunakan penyimpanan lokal hibrida untuk menghemat kuota baca Firestore secara maksimal. Anda dapat mencadangkan seluruh data sekolah ke Cloud Firestore atau menarik sinkronisasi kapan saja.
           </p>
+
+          <div className="pt-2 flex flex-wrap items-center gap-2">
+            {firebaseUser ? (
+              <div className="inline-flex items-center gap-2 bg-blue-950/60 border border-blue-400/30 px-3 py-1.5 rounded-xl text-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-blue-100 font-medium">
+                  Terautentikasi: <strong className="font-semibold text-white">{firebaseUser.email}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => signOutFirebase()}
+                  className="ml-1 text-[11px] text-rose-300 hover:text-rose-200 underline cursor-pointer"
+                >
+                  Keluar Google
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => signInWithGoogle()}
+                className="inline-flex items-center gap-2 bg-white text-slate-900 hover:bg-slate-100 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <LogIn className="w-3.5 h-3.5 text-blue-600" />
+                <span>Hubungkan Akun Google</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2 self-stretch sm:self-auto shrink-0">

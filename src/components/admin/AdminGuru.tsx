@@ -24,12 +24,18 @@ interface AdminGuruProps {
 }
 
 const ALL_TANGGUNG_JAWAB: TanggungJawab[] = [
-  'Kelas 1',
-  'Kelas 2',
-  'Kelas 3',
-  'Kelas 4',
-  'Kelas 5',
-  'Kelas 6',
+  '1A',
+  '1B',
+  '2A',
+  '2B',
+  '3A',
+  '3B',
+  '4A',
+  '4B',
+  '5A',
+  '5B',
+  '6A',
+  '6B',
   'Pendidikan Agama Islam',
   'Pendidikan Agama Kristen',
   'Pendidikan Agama Katolik',
@@ -48,7 +54,7 @@ export const AdminGuru: React.FC<AdminGuruProps> = ({ users, onSaveUsers }) => {
     username: '',
     nama: '',
     nip: '',
-    tanggungJawab: 'Kelas 1' as TanggungJawab,
+    tanggungJawab: '1A' as TanggungJawab,
     password: 'Garuda123',
     tandaTanganUrl: '',
   });
@@ -63,7 +69,7 @@ export const AdminGuru: React.FC<AdminGuruProps> = ({ users, onSaveUsers }) => {
       username: '',
       nama: '',
       nip: '',
-      tanggungJawab: 'Kelas 1',
+      tanggungJawab: '1A',
       password: 'Garuda123',
       tandaTanganUrl: '',
     });
@@ -171,7 +177,7 @@ export const AdminGuru: React.FC<AdminGuruProps> = ({ users, onSaveUsers }) => {
       const username = r[0] || `guru_${Date.now()}_${Math.floor(Math.random() * 100)}`;
       const nama = r[1] || 'Nama Guru';
       const nip = r[2] || '';
-      const tanggungJawab = (r[3] as TanggungJawab) || 'Kelas 1';
+      const tanggungJawab = (r[3] as TanggungJawab) || '1A';
 
       newGurus.push({
         id: `guru-${Date.now()}-${Math.floor(Math.random() * 1000)}`,

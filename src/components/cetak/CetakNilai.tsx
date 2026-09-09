@@ -35,7 +35,7 @@ export const CetakNilai: React.FC<CetakNilaiProps> = ({
   const canAccessAllClasses = isAdmin || isSubjectTeacher;
 
   const [selectedClass, setSelectedClass] = useState<string>(
-    canAccessAllClasses ? 'Kelas 1' : currentUser.tanggungJawab
+    canAccessAllClasses ? '1A' : currentUser.tanggungJawab
   );
   const initialMapel = isSubjectTeacher ? currentUser.tanggungJawab : 'Bahasa Indonesia';
   const [selectedMapel, setSelectedMapel] = useState<string>(initialMapel);
